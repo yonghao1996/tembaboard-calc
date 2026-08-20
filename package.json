@@ -1,0 +1,10 @@
+{
+  "name": "tembaboard-calc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "템바보드 재단 계산기 — 계산 로직",
+  "scripts": {
+    "test": "node --test"
+  }
+}

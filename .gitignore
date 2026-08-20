@@ -1,0 +1,5 @@
+# 빌드 결과물. build.js 로 다시 만들 수 있다.
+dist/
+
+node_modules/
+.DS_Store
