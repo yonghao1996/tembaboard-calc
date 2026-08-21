@@ -246,9 +246,11 @@ button.btn {
   color: var(--ink);
   cursor: pointer;
 }
-button.btn:hover { border-color: var(--accent); color: var(--accent-ink); }
+button.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-ink); }
+button.btn:disabled { opacity: 0.42; cursor: not-allowed; }
+button.btn.solid:disabled { background: var(--line-strong); border-color: var(--line-strong); color: var(--surface); }
 button.btn.solid { background: var(--ink); color: var(--ground); border-color: var(--ink); }
-button.btn.solid:hover { background: var(--accent-ink); border-color: var(--accent-ink); color: #fff; }
+button.btn.solid:hover:not(:disabled) { background: var(--accent-ink); border-color: var(--accent-ink); color: #fff; }
 button.link {
   background: none; border: 0; padding: 2px 4px; cursor: pointer;
   font-family: var(--mono); font-size: 11px; color: var(--muted); text-decoration: underline;
@@ -655,6 +657,7 @@ footer {
       $('#scraps').innerHTML = '';
       $('#scrap-count').textContent = '';
       $('#legend').innerHTML = '';
+      updateActionButtons();
       return;
     }
 
@@ -689,6 +692,7 @@ footer {
 
     renderQuote(result);
     renderDrawings(result);
+    updateActionButtons();
   }
 
   // --- 도면 ---------------------------------------------------------------
@@ -1048,6 +1052,18 @@ footer {
     renderScraps(result, uid + 100);
   }
 
+  /** 내보낼 내용이 없으면 버튼을 잠가서 눌러도 아무 일 없는 상황을 없앤다 */
+  function updateActionButtons() {
+    document.querySelectorAll('[data-copy]').forEach((btn) => {
+      const empty = !lastText[btn.dataset.copy];
+      btn.disabled = empty;
+      btn.title = empty ? '가로·세로를 입력하면 활성화됩니다' : '';
+    });
+    const talk = $('#send-talk');
+    talk.disabled = !lastText.cut;
+    talk.title = lastText.cut ? '재단 지시서를 복사하고 톡톡 창을 엽니다' : '가로·세로를 입력하면 활성화됩니다';
+  }
+
   function renderQuote(result) {
     const q = quote(result);
     const head = ['항목', '수량', '단가', '금액'];
@@ -1128,10 +1144,15 @@ footer {
   // 톡톡은 링크로 메시지를 미리 채울 수 없다. 복사해 두고 톡톡 창을 열어 준다.
   $('#send-talk').onclick = async () => {
     const btn = $('#send-talk');
-    const text = lastText.cut;
-    if (!text) return;
     const label = btn.dataset.label || btn.textContent;
     btn.dataset.label = label;
+
+    const text = lastText.cut;
+    if (!text) {
+      btn.textContent = '치수를 먼저 입력하세요';
+      setTimeout(() => { btn.textContent = label; }, 1800);
+      return;
+    }
 
     // 팝업 차단을 피하려면 클릭 직후에 창을 열어야 한다
     const win = TALK_URL ? window.open(TALK_URL, '_blank', 'noopener') : null;
@@ -1152,10 +1173,15 @@ footer {
 
   document.querySelectorAll('[data-copy]').forEach((btn) => {
     btn.onclick = async () => {
-      const text = lastText[btn.dataset.copy];
-      if (!text) return;
       const label = btn.dataset.label || btn.textContent;
       btn.dataset.label = label;
+
+      const text = lastText[btn.dataset.copy];
+      if (!text) {
+        btn.textContent = '내용 없음';
+        setTimeout(() => { btn.textContent = label; }, 1500);
+        return;
+      }
       const ok = await copyText(text);
       if (ok) {
         btn.textContent = '복사됨';
