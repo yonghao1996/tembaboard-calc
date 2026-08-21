@@ -356,11 +356,11 @@ TC-2와 동일하되 끝단정리 O → 원장당 floor(2440/825) = 2 → 소요
 
 | 경로 | 용도 | git |
 |---|---|---|
-| `dist/index.html` | 아티팩트 게시 (링크 고정) | 제외 |
-| `docs/index.html` | GitHub Pages 배포 | 커밋 |
+| `index.html` (루트) | 배포가 서빙하는 파일. **항상 루트에 있어야 한다** | 커밋 |
+| `dist/index.html` | 아티팩트 게시. 링크가 이 경로에 묶여 있다 | 제외 |
 
-GitHub Pages 설정: Settings → Pages → Source `main` / `/docs`.
-페이지를 고쳤으면 `node build.js` 를 돌려 `docs/` 까지 갱신한 뒤 커밋한다.
+페이지를 고쳤으면 `node build.js` 를 돌려 루트 `index.html` 까지 갱신한 뒤 커밋한다.
+빌드를 건너뛰면 커밋은 돼도 배포된 화면은 안 바뀐다.
 
 ## 8. 작업 원칙
 
