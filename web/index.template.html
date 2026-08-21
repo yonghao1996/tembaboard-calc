@@ -255,6 +255,8 @@ button.link {
 }
 button.link:hover { color: var(--bad); }
 .row-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn-row { display: flex; gap: 6px; flex-shrink: 0; }
+.btn-row button { white-space: nowrap; }
 
 /* --- output --- */
 .out-block { display: flex; flex-direction: column; gap: 8px; }
@@ -427,7 +429,13 @@ footer {
             <pre class="out" id="out-sum"></pre>
           </div>
           <div class="out-block">
-            <div class="out-label"><span>재단 지시서[톡톡으로 복붙 부탁드립니다.]</span><button class="btn" data-copy="cut">복사</button></div>
+            <div class="out-label">
+              <span>재단 지시서[톡톡으로 복붙 부탁드립니다.]</span>
+              <span class="btn-row">
+                <button class="btn" data-copy="cut">복사</button>
+                <button class="btn solid" id="send-talk">톡톡으로 보내기</button>
+              </span>
+            </div>
             <pre class="out" id="out-cut"></pre>
           </div>
           <div class="out-block">
@@ -475,7 +483,7 @@ footer {
 
   <div id="manual-copy" style="display:none">
     <div class="manual-head">
-      <strong>복사가 차단됐습니다</strong>
+      <strong id="manual-copy-title">복사가 차단됐습니다</strong>
       <button class="btn" id="manual-copy-close">닫기</button>
     </div>
     <p class="note">아래 내용이 선택돼 있습니다. <b>⌘C</b> (윈도우는 <b>Ctrl+C</b>) 로 복사하세요.</p>
@@ -1112,7 +1120,35 @@ footer {
     area.select();
   }
 
-  $('#manual-copy-close').onclick = () => { $('#manual-copy').style.display = 'none'; };
+  $('#manual-copy-close').onclick = () => {
+    $('#manual-copy').style.display = 'none';
+    $('#manual-copy-title').textContent = '복사가 차단됐습니다';
+  };
+
+  // 톡톡은 링크로 메시지를 미리 채울 수 없다. 복사해 두고 톡톡 창을 열어 준다.
+  $('#send-talk').onclick = async () => {
+    const btn = $('#send-talk');
+    const text = lastText.cut;
+    if (!text) return;
+    const label = btn.dataset.label || btn.textContent;
+    btn.dataset.label = label;
+
+    // 팝업 차단을 피하려면 클릭 직후에 창을 열어야 한다
+    const win = TALK_URL ? window.open(TALK_URL, '_blank', 'noopener') : null;
+    const copied = await copyText(text);
+
+    if (!TALK_URL) {
+      showManualCopy(text);
+      $('#manual-copy-title').textContent = '톡톡 주소가 아직 설정되지 않았습니다 (store-options.js)';
+      return;
+    }
+    if (!copied || !win) {
+      showManualCopy(text);
+      return;
+    }
+    btn.textContent = '복사됨 · 톡톡에 붙여넣기';
+    setTimeout(() => { btn.textContent = label; }, 2400);
+  };
 
   document.querySelectorAll('[data-copy]').forEach((btn) => {
     btn.onclick = async () => {

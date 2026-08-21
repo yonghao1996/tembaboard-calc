@@ -20,3 +20,11 @@ export const STORE_OPTIONS = {
     square: '사각템바 (100x2440x12T)',
   },
 };
+
+/**
+ * 네이버 톡톡 상담 주소. 예: 'https://talk.naver.com/ct/xxxxxx'
+ * 톡톡은 링크로 메시지를 미리 채우는 규격이 없다. 그래서 '톡톡으로 보내기' 버튼은
+ * 지시서를 복사한 뒤 톡톡 창을 열어 주고, 붙여넣기는 사람이 한다.
+ * 비워 두면 버튼이 복사만 하고 주소가 없다고 알려 준다.
+ */
+export const TALK_URL = '';
