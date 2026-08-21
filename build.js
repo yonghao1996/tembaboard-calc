@@ -23,9 +23,34 @@ const bundle = [read('colors.js'), read('store-options.js'), read('cutting.js'),
 
 const html = read('web/index.template.html').replace('/*__BUNDLE__*/', () => bundle);
 
+/**
+ * 아티팩트는 <head> 를 알아서 씌워 주지만, 직접 서빙하는 파일은 아무도 안 씌워 준다.
+ * charset 이 없으면 브라우저가 인코딩을 추측해서 한글이 깨진다.
+ * 그래서 배포용은 완전한 문서로 감싼다.
+ */
+function standalone(fragment) {
+  const cut = fragment.indexOf('<style>');
+  const headBits = fragment.slice(0, cut).trim(); // title, 폰트 link
+  const bodyBits = fragment.slice(cut);
+  return `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="템바보드 치수를 넣으면 주문 옵션, 재단 지시서, 자투리, 견적, 작업지시 도면을 계산합니다.">
+${headBits}
+</head>
+<body>
+${bodyBits}
+</body>
+</html>
+`;
+}
+
 // index.html : 저장소 루트. 배포가 서빙하는 파일이라 항상 여기 있어야 한다 (커밋)
-// dist/      : 아티팩트 게시용. 링크가 이 경로에 묶여 있다 (gitignore)
-writeFileSync(join(root, 'index.html'), html);
+// dist/      : 아티팩트 게시용. 조각으로 둬야 한다 (gitignore)
+const page = standalone(html);
+writeFileSync(join(root, 'index.html'), page);
 mkdirSync(join(root, 'dist'), { recursive: true });
 writeFileSync(join(root, 'dist/index.html'), html);
-console.log(`index.html, dist/index.html — ${(html.length / 1024).toFixed(1)} KB`);
+console.log(`index.html ${(page.length / 1024).toFixed(1)} KB (완전한 문서) · dist/index.html ${(html.length / 1024).toFixed(1)} KB (조각)`);
