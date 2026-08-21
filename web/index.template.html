@@ -235,7 +235,10 @@ input[type="number"]:focus-visible, select:focus-visible, button:focus-visible {
 }
 
 /* buttons */
-button.btn {
+.btn {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
   font-family: var(--sans);
   font-size: 13px;
   font-weight: 500;
@@ -246,11 +249,11 @@ button.btn {
   color: var(--ink);
   cursor: pointer;
 }
-button.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-ink); }
-button.btn:disabled { opacity: 0.42; cursor: not-allowed; }
-button.btn.solid:disabled { background: var(--line-strong); border-color: var(--line-strong); color: var(--surface); }
-button.btn.solid { background: var(--ink); color: var(--ground); border-color: var(--ink); }
-button.btn.solid:hover:not(:disabled) { background: var(--accent-ink); border-color: var(--accent-ink); color: #fff; }
+.btn:hover:not(:disabled):not(.is-disabled) { border-color: var(--accent); color: var(--accent-ink); }
+.btn:disabled, .btn.is-disabled { opacity: 0.42; cursor: not-allowed; }
+.btn.solid:disabled, .btn.solid.is-disabled { background: var(--line-strong); border-color: var(--line-strong); color: var(--surface); }
+.btn.solid { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.btn.solid:hover:not(:disabled):not(.is-disabled) { background: var(--accent-ink); border-color: var(--accent-ink); color: #fff; }
 button.link {
   background: none; border: 0; padding: 2px 4px; cursor: pointer;
   font-family: var(--mono); font-size: 11px; color: var(--muted); text-decoration: underline;
@@ -435,7 +438,7 @@ footer {
               <span>재단 지시서[톡톡으로 복붙 부탁드립니다.]</span>
               <span class="btn-row">
                 <button class="btn" data-copy="cut">복사</button>
-                <button class="btn solid" id="send-talk">톡톡으로 보내기</button>
+                <a class="btn solid" id="send-talk" target="_blank" rel="noopener">톡톡으로 보내기</a>
               </span>
             </div>
             <pre class="out" id="out-cut"></pre>
@@ -1060,8 +1063,11 @@ footer {
       btn.title = empty ? '가로·세로를 입력하면 활성화됩니다' : '';
     });
     const talk = $('#send-talk');
-    talk.disabled = !lastText.cut;
-    talk.title = lastText.cut ? '재단 지시서를 복사하고 톡톡 창을 엽니다' : '가로·세로를 입력하면 활성화됩니다';
+    const ready = Boolean(lastText.cut);
+    talk.href = TALK_URL || '#';
+    talk.classList.toggle('is-disabled', !ready);
+    talk.setAttribute('aria-disabled', String(!ready));
+    talk.title = ready ? '재단 지시서를 복사하고 톡톡 창을 엽니다' : '가로·세로를 입력하면 활성화됩니다';
   }
 
   function renderQuote(result) {
@@ -1127,9 +1133,10 @@ footer {
     return false;
   }
 
-  function showManualCopy(text) {
+  function showManualCopy(text, title) {
     const box = $('#manual-copy');
     const area = $('#manual-copy-text');
+    $('#manual-copy-title').textContent = title || '복사가 차단됐습니다';
     area.value = text;
     box.style.display = 'flex';
     area.focus();
@@ -1141,35 +1148,33 @@ footer {
     $('#manual-copy-title').textContent = '복사가 차단됐습니다';
   };
 
-  // 톡톡은 링크로 메시지를 미리 채울 수 없다. 복사해 두고 톡톡 창을 열어 준다.
-  $('#send-talk').onclick = async () => {
+  // 톡톡은 링크로 메시지를 미리 채울 수 없다.
+  // 창 열기는 <a> 가 맡는다(링크 클릭은 팝업 차단에 걸리지 않는다). 코드는 복사만 한다.
+  $('#send-talk').addEventListener('click', async (e) => {
     const btn = $('#send-talk');
     const label = btn.dataset.label || btn.textContent;
     btn.dataset.label = label;
-
-    const text = lastText.cut;
-    if (!text) {
-      btn.textContent = '치수를 먼저 입력하세요';
-      setTimeout(() => { btn.textContent = label; }, 1800);
-      return;
-    }
-
-    // 팝업 차단을 피하려면 클릭 직후에 창을 열어야 한다
-    const win = TALK_URL ? window.open(TALK_URL, '_blank', 'noopener') : null;
-    const copied = await copyText(text);
+    const flash = (msg, ms) => {
+      btn.textContent = msg;
+      setTimeout(() => { btn.textContent = label; }, ms || 2000);
+    };
 
     if (!TALK_URL) {
-      showManualCopy(text);
-      $('#manual-copy-title').textContent = '톡톡 주소가 아직 설정되지 않았습니다 (store-options.js)';
+      e.preventDefault();
+      showManualCopy(lastText.cut, '톡톡 주소가 설정되지 않았습니다 (store-options.js)');
       return;
     }
-    if (!copied || !win) {
-      showManualCopy(text);
+    const text = lastText.cut;
+    if (!text) {
+      e.preventDefault();
+      flash('치수를 먼저 입력하세요', 1800);
       return;
     }
-    btn.textContent = '복사됨 · 톡톡에 붙여넣기';
-    setTimeout(() => { btn.textContent = label; }, 2400);
-  };
+    // preventDefault 하지 않는다 → 링크가 톡톡 창을 연다
+    const copied = await copyText(text);
+    if (copied) flash('복사됨 · 톡톡에 붙여넣기', 2400);
+    else showManualCopy(text, '복사가 차단됐습니다');
+  });
 
   document.querySelectorAll('[data-copy]').forEach((btn) => {
     btn.onclick = async () => {
