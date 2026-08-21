@@ -23,6 +23,10 @@ const bundle = [read('colors.js'), read('store-options.js'), read('cutting.js'),
 
 const html = read('web/index.template.html').replace('/*__BUNDLE__*/', () => bundle);
 
-mkdirSync(join(root, 'dist'), { recursive: true });
-writeFileSync(join(root, 'dist/index.html'), html);
-console.log(`dist/index.html — ${(html.length / 1024).toFixed(1)} KB`);
+// dist/  : 아티팩트 게시용 (gitignore 대상)
+// docs/  : GitHub Pages 배포용 (커밋한다)
+for (const dir of ['dist', 'docs']) {
+  mkdirSync(join(root, dir), { recursive: true });
+  writeFileSync(join(root, dir, 'index.html'), html);
+}
+console.log(`dist/index.html, docs/index.html — ${(html.length / 1024).toFixed(1)} KB`);

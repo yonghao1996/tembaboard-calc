@@ -1,0 +1,1971 @@
+<title>템바보드 재단 계산기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+
+<style>
+:root {
+  --ground: #F3F3EE;
+  --surface: #FFFFFF;
+  --sunken: #EAEAE2;
+  --ink: #1B1C17;
+  --muted: #6C6F63;
+  --line: #DCDCD2;
+  --line-strong: #C2C2B4;
+  --accent: #9A7A08;
+  --accent-ink: #6B5405;
+  --accent-soft: #F3E9C4;
+  --ok: #2C6F4E;
+  --bad: #A5342A;
+  --bad-soft: #F6E3E0;
+
+  --sans: "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+  --mono: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #17180F;
+    --surface: #202117;
+    --sunken: #292A1F;
+    --ink: #EDEDE3;
+    --muted: #9B9E8E;
+    --line: #33352A;
+    --line-strong: #4A4C3E;
+    --accent: #D9B444;
+    --accent-ink: #EBCE7C;
+    --accent-soft: #3B3520;
+    --ok: #6FBB8E;
+    --bad: #E08479;
+    --bad-soft: #3A241F;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #17180F;
+  --surface: #202117;
+  --sunken: #292A1F;
+  --ink: #EDEDE3;
+  --muted: #9B9E8E;
+  --line: #33352A;
+  --line-strong: #4A4C3E;
+  --accent: #D9B444;
+  --accent-ink: #EBCE7C;
+  --accent-soft: #3B3520;
+  --ok: #6FBB8E;
+  --bad: #E08479;
+  --bad-soft: #3A241F;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* --- header --- */
+header { display: flex; flex-direction: column; gap: 10px; }
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.lede { margin: 0; color: var(--muted); max-width: 62ch; }
+.specbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+.specbar b { color: var(--ink); font-weight: 500; }
+
+/* --- layout --- */
+.cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+@media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.panel-head h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.panel-head .hint { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.panel-body { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+
+.col-out { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 28px; }
+@media (max-width: 900px) { .col-out { position: static; } }
+.col-in { display: flex; flex-direction: column; gap: 28px; }
+
+/* --- item card --- */
+.item {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+}
+.item.invalid { border-color: var(--bad); }
+.item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--sunken);
+  border-bottom: 1px solid var(--line);
+}
+.item-no {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px 12px;
+}
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field.span { grid-column: 1 / -1; }
+label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+input[type="number"], select {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  padding: 7px 9px;
+  width: 100%;
+}
+select { font-family: var(--sans); }
+input[type="number"]:focus-visible, select:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* segmented + toggles */
+.seg { display: flex; border: 1px solid var(--line-strong); border-radius: 3px; overflow: hidden; }
+.seg button {
+  flex: 1;
+  font-family: var(--sans);
+  font-size: 14px;
+  padding: 7px 4px;
+  background: var(--surface);
+  color: var(--muted);
+  border: 0;
+  cursor: pointer;
+}
+.seg button + button { border-left: 1px solid var(--line-strong); }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+
+.toggles { display: flex; gap: 8px; }
+.toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  user-select: none;
+}
+.toggle input { accent-color: var(--accent); margin: 0; }
+.toggle.on { border-color: var(--accent); color: var(--ink); background: var(--accent-soft); }
+
+.err {
+  margin: 0 12px 12px;
+  padding: 8px 10px;
+  background: var(--bad-soft);
+  color: var(--bad);
+  border-radius: 3px;
+  font-size: 12.5px;
+}
+
+/* buttons */
+button.btn {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 3px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+button.btn:hover { border-color: var(--accent); color: var(--accent-ink); }
+button.btn.solid { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+button.btn.solid:hover { background: var(--accent-ink); border-color: var(--accent-ink); color: #fff; }
+button.link {
+  background: none; border: 0; padding: 2px 4px; cursor: pointer;
+  font-family: var(--mono); font-size: 11px; color: var(--muted); text-decoration: underline;
+}
+button.link:hover { color: var(--bad); }
+.row-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* --- output --- */
+.out-block { display: flex; flex-direction: column; gap: 8px; }
+.out-label {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
+pre.out {
+  margin: 0;
+  padding: 13px 15px;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--accent);
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.75;
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+  overflow-x: auto;
+  color: var(--ink);
+}
+pre.out.empty { color: var(--muted); border-left-color: var(--line-strong); }
+
+/* detail table */
+.tbl-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th { font-weight: 500; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+th:first-child, td:first-child { text-align: left; font-family: var(--sans); }
+tbody tr:last-child td { border-bottom: 0; }
+td.strong { color: var(--accent-ink); font-weight: 600; }
+
+/* --- quote --- */
+tr.total td { border-top: 1px solid var(--line-strong); border-bottom: 0; font-weight: 600; padding-top: 10px; }
+tr.total td:last-child { color: var(--accent-ink); font-size: 15px; }
+td.unknown { color: var(--muted); }
+.note { font-size: 12px; color: var(--muted); }
+
+/* --- 도면 --- */
+h3.group {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+h3.group span { font-family: var(--mono); font-size: 11px; letter-spacing: 0; text-transform: none; }
+.figs.scrap { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
+.figs.scrap figure.fig figcaption { flex-direction: column; gap: 2px; }
+.scrap-none { font-size: 13px; color: var(--muted); }
+.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px; }
+figure.fig { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+figure.fig figcaption {
+  font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+  order: -1; display: flex; flex-wrap: wrap; gap: 4px 10px;
+}
+figure.fig figcaption b { color: var(--ink); font-weight: 500; }
+svg.dwg { max-width: 100%; height: auto; color: var(--ink); display: block; }
+svg.dwg text { fill: currentColor; font-family: var(--mono); font-size: 11px; }
+svg.dwg text.dim { fill: var(--muted); font-size: 10px; }
+svg.dwg .edge { fill: none; stroke: currentColor; stroke-width: 1; }
+svg.dwg .thin { fill: none; stroke: var(--line-strong); stroke-width: 1; }
+svg.dwg .waste { fill: var(--bad-soft); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i {
+  width: 13px; height: 13px; border: 1px solid var(--line-strong); border-radius: 2px; display: inline-block;
+}
+.legend i.hatch {
+  background: repeating-linear-gradient(45deg, var(--sunken) 0 4px, var(--line-strong) 4px 6px);
+}
+.legend i.waste { background: var(--bad-soft); }
+
+/* --- 수동 복사 --- */
+#manual-copy {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 10;
+  margin: 0 auto;
+  max-width: 720px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
+}
+.manual-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#manual-copy textarea {
+  width: 100%;
+  resize: vertical;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink);
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 10px 12px;
+}
+
+footer {
+  font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+  border-top: 1px solid var(--line); padding-top: 14px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">원장 재단 지시서</div>
+    <h1>템바보드 재단 계산기</h1>
+    <div class="specbar">
+      <span>반달 유효폭 <b>295</b></span>
+      <span>사각 유효폭 <b>300</b></span>
+      <span>원장 길이 <b>2440</b></span>
+      <span>커프 <b>20</b></span>
+      <span>재단손실 <b>+5</b></span>
+      <span>낱개템바 <b>100</b></span>
+      <span>끝단정리 <b>-20</b></span>
+      <span>상단몰딩 <b>-15</b></span>
+    </div>
+  </header>
+
+  <div class="cols">
+    <div class="col-in">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>주문 항목</h2>
+          <span class="hint">치수 단위 mm</span>
+        </div>
+        <div class="panel-body">
+          <div id="items" style="display:flex;flex-direction:column;gap:14px"></div>
+          <div class="row-actions">
+            <button class="btn solid" id="add">＋ 항목 추가</button>
+            <button class="btn" id="reset">초기화</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>계산 상세</h2>
+          <span class="hint">항목별 중간값</span>
+        </div>
+        <div class="panel-body">
+          <div class="tbl-scroll"><table id="detail"></table></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-out">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>출력</h2>
+          <span class="hint">붙여넣기용</span>
+        </div>
+        <div class="panel-body">
+          <div class="out-block">
+            <div class="out-label"><span>주문 요약 <span style="text-transform:none;font-weight:400">(스토어 옵션명)</span></span><button class="btn" data-copy="sum">복사</button></div>
+            <pre class="out" id="out-sum"></pre>
+          </div>
+          <div class="out-block">
+            <div class="out-label"><span>재단 지시서[톡톡으로 복붙 부탁드립니다.]</span><button class="btn" data-copy="cut">복사</button></div>
+            <pre class="out" id="out-cut"></pre>
+          </div>
+          <div class="out-block">
+            <div class="out-label"><span>자투리</span><button class="btn" data-copy="left">복사</button></div>
+            <pre class="out" id="out-left"></pre>
+          </div>
+          <div class="row-actions">
+            <button class="btn solid" data-copy="full">지시서 + 자투리 한 번에 복사</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>견적</h2>
+          <span class="hint">스토어 판매가</span>
+        </div>
+        <div class="panel-body">
+          <div class="tbl-scroll"><table id="quote"></table></div>
+          <div class="note" id="quote-note"></div>
+          <div class="row-actions"><button class="btn" data-copy="quote">견적 복사</button></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>작업지시 도면</h2>
+      <span class="hint">치수 단위 mm</span>
+    </div>
+    <div class="panel-body">
+      <div class="legend" id="legend"></div>
+
+      <h3 class="group">완성 배치 <span id="wall-count"></span></h3>
+      <div class="figs" id="walls"></div>
+
+      <h3 class="group">재단 방법 <span id="cut-count"></span></h3>
+      <div class="figs" id="cuts"></div>
+
+      <h3 class="group">자투리 <span id="scrap-count"></span></h3>
+      <div class="figs scrap" id="scraps"></div>
+    </div>
+  </section>
+
+  <div id="manual-copy" style="display:none">
+    <div class="manual-head">
+      <strong>복사가 차단됐습니다</strong>
+      <button class="btn" id="manual-copy-close">닫기</button>
+    </div>
+    <p class="note">아래 내용이 선택돼 있습니다. <b>⌘C</b> (윈도우는 <b>Ctrl+C</b>) 로 복사하세요.</p>
+    <textarea id="manual-copy-text" readonly rows="10"></textarea>
+  </div>
+
+  <footer>
+    <span>재단 지시서 숫자 = 실제로 톱을 넣는 길이(완성 치수 + 재단손실 5). 완성 세로는 계산 상세 표에서 확인. 100폭 = 낱개 템바.</span>
+  </footer>
+</div>
+
+<script>
+/* ===== 계산 로직: colors.js + cutting.js 원본 인라인 (build.js가 주입) ===== */
+/**
+ * 색상 목록. 스토어 제품 옵션 기준.
+ *
+ * 색상 이름은 두 모양 공통이지만 **선택 가능한 색이 모양마다 다르다.**
+ *   사각 14색 / 반달 6색
+ * codes 에 해당 모양의 제품 코드가 있으면 그 모양에서 주문 가능한 색이다.
+ *
+ * JA3054 = 진한블루 (확인 완료). 사각 옵션 목록의 JA3054-연한블루도 받은 그대로 둔다.
+ *
+ * 정렬 순서는 사각 옵션 목록 순서를 따른다.
+ */
+const COLORS = [
+  { name: '화이트',   codes: { square: 'JA3011', half: 'JA3011' } },
+  { name: '중간회색', codes: { square: 'JA3024' } },
+  { name: '연한회색', codes: { square: 'JA3048' } },
+  { name: '연한블루', codes: { square: 'JA3054' } },
+  { name: '진한블루', codes: { square: 'JA3050', half: 'JA3054' } }, // 반달은 JA3054
+  { name: '진한회색', codes: { square: 'JA2205' } },
+  { name: '카키',     codes: { square: 'JA2210', half: 'JA2210' } },
+  { name: '핑크',     codes: { square: 'JA3034' } },
+  { name: '연한오크', codes: { square: 'JA8401', half: 'JA8401' } },
+  { name: '중간오크', codes: { square: 'JA5021' } },
+  { name: '진한오크', codes: { square: 'JA705',  half: 'JA705'  } },
+  { name: '밝은오크', codes: { square: 'JA6W2' } },
+  { name: '연한티크', codes: { square: 'JA5033' } },
+  { name: '진한티크', codes: { square: 'JA0901', half: 'JA0901' } },
+];
+
+/** 출력 정렬 기준: COLORS 선언 순서 */
+const COLOR_ORDER = new Map(COLORS.map((c, i) => [c.name, i]));
+
+function findColor(name) {
+  return COLORS.find((c) => c.name === name) ?? null;
+}
+
+/** 해당 모양의 제품 코드. 그 모양에 없는 색이면 null. */
+function colorCode(name, shapeKey) {
+  return findColor(name)?.codes[shapeKey] ?? null;
+}
+
+/** 그 모양에서 주문 가능한 색인지 */
+function isColorAvailable(name, shapeKey) {
+  return colorCode(name, shapeKey) !== null;
+}
+
+/** 모양별 선택 가능한 색상 목록 */
+function colorsForShape(shapeKey) {
+  return COLORS.filter((c) => c.codes[shapeKey]);
+}
+
+/** 스토어 색상 옵션명 (예: JA3011-화이트) */
+function storeColorLabel(name, shapeKey) {
+  const code = colorCode(name, shapeKey);
+  return code ? `${code}-${name}` : name;
+}
+
+/**
+ * 제품 코드별 색. 도면에 실제 제품 색을 칠하는 데 쓴다.
+ * 색상 카드 이미지에서 눈으로 뽑은 대표색이라 실물과 차이가 있을 수 있다.
+ * 정확한 값이 나오면 여기만 고치면 된다.
+ */
+const CODE_SWATCH = {
+  JA0901: '#8F6B4E', // 진한티크
+  JA5033: '#C9A87C', // 연한티크
+  JA6W2:  '#E3C98F', // 밝은오크
+  JA705:  '#D9B682', // 진한오크
+  JA5021: '#D3C2A8', // 중간오크
+  JA8401: '#DACEBE', // 연한오크
+  JA3034: '#D5A9A5', // 핑크
+  JA2210: '#A19A85', // 카키
+  JA2205: '#575B62', // 진한회색
+  JA3050: '#5C6376', // 진한블루(사각)
+  JA3054: '#4E5578', // 진한블루(반달) / 사각 옵션명은 연한블루
+  JA3048: '#8C8F93', // 연한회색
+  JA3024: '#9C9EA0', // 중간회색
+  JA3011: '#ECEDEE', // 화이트
+};
+
+/** 해당 모양에서 그 색이 실제로 어떤 색인지 (#rrggbb). 모르면 null */
+function swatchOf(name, shapeKey) {
+  const code = colorCode(name, shapeKey);
+  return code ? (CODE_SWATCH[code] ?? null) : null;
+}
+
+/**
+ * 스토어(네이버) 옵션명.
+ * 주문 요약을 주문서와 한 줄씩 대조할 수 있게, 출력 문구를 스토어 옵션 그룹명과 맞춘다.
+ * 옵션명이 바뀌면 계산 로직은 건드리지 말고 이 파일만 고친다.
+ * 줄 순서도 스토어 옵션 순서를 따른다.
+ */
+const STORE_OPTIONS = {
+  shape: '템바보드 타입',
+  color: '색상',
+  /** 재단 횟수. 수량 = 총 재단 횟수 */
+  cutting: '재단 필요해요',
+  /** 마감몰딩은 추가상품. 규격별로 옵션이 따로 있다. */
+  moldingByLength: {
+    2440: '마감몰딩 2440mm 기준',
+    1200: '마감몰딩 1200mm 기준',
+  },
+  /** 100mm 낱개 템바. 색상은 원장 색상을 그대로 따라간다. */
+  stripByShape: {
+    half: '반달템바 (100x2440x9T)',
+    square: '사각템바 (100x2440x12T)',
+  },
+};
+
+/**
+ * 템바보드 재단 계산 로직.
+ * UI 코드 없음. 순수 계산 + 출력 텍스트 포맷만 담당한다.
+ * 규칙 출처: CLAUDE.md 2장(계산 로직), 3장(출력 형식).
+ */
+
+
+/** 모양별 원장 규격. 유효폭 = 실측폭(옆판 겹침 손실 없음). */
+const SHAPES = {
+  half:   { key: 'half',   label: '반달', effectiveWidth: 295, sheetLength: 2440 },
+  square: { key: 'square', label: '사각', effectiveWidth: 300, sheetLength: 2440 },
+};
+
+/** 예전 표기(원형)로 들어온 입력도 계속 받는다. */
+const SHAPE_ALIASES = { round: 'half', 원형: 'half' };
+
+/** 톱날 손실(커프). 재단 1회당, 조각과 조각 사이에만 발생. */
+const KERF = 20;
+/** 끝단 정리 선택 시 원장에서 빠지는 길이. */
+const TRIM_LOSS = 20;
+/** 상단 마감몰딩 1면 차감. */
+const MOLDING_DEDUCTION = 15;
+/** 재단 손실. 조각을 자를 때마다 세로가 이만큼 줄어든다. 조각 1개당 1회. */
+const CUT_LOSS = 5;
+/** 낱개 템바 폭 (100 × 2440). 원장으로 못 채우는 자투리 폭을 이걸로 메운다. */
+const STRIP_WIDTH = 100;
+/** 마감몰딩 규격 (15 × L × 12t). 긴 것부터. */
+const MOLDING_LENGTHS = [2440, 1200];
+const MOLDING_TYPE = '민자';
+
+/** 자재 종류: 원장(유효폭) / 낱개 템바(100폭) */
+const STOCK_BOARD = 'board';
+const STOCK_STRIP = 'strip';
+
+class CuttingError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.name = 'CuttingError';
+    this.code = code;
+  }
+}
+
+function resolveShape(shape) {
+  if (typeof shape === 'string') {
+    if (SHAPES[shape]) return SHAPES[shape];
+    if (SHAPE_ALIASES[shape]) return SHAPES[SHAPE_ALIASES[shape]];
+    const byLabel = Object.values(SHAPES).find((s) => s.label === shape);
+    if (byLabel) return byLabel;
+  }
+  throw new CuttingError('INVALID_SHAPE', `알 수 없는 모양: ${shape}`);
+}
+
+// --- 2.2 완성 치수 / 재단 길이 (세로) ---------------------------------------
+// 몰딩은 상단 한 면에만 붙으므로 세로 차감은 15mm 1회.
+// 완성 치수 = 고객에게 나가는 길이.
+function finishedLength(height, useMolding) {
+  return useMolding ? height - MOLDING_DEDUCTION : height;
+}
+
+// 재단하면 조각 세로가 5mm 줄어든다. 완성 치수를 맞추려면 그만큼 크게 잘라야 하므로
+// 원장에서 실제로 잘라내는 길이(= 원장 점유 길이)는 완성 치수 + 5.
+// 재단 지시서에 찍히는 값도 이 길이다.
+function cutLength(height, useMolding) {
+  return finishedLength(height, useMolding) + CUT_LOSS;
+}
+
+// --- 2.2b 세로 나누기 -------------------------------------------------------
+// 세로가 원장 유효길이를 넘으면 한 장으로 못 뽑는다. 길이를 나눠서 이어 붙인다.
+// 조각 하나가 가질 수 있는 최대 완성 길이 = 유효길이 - 재단손실.
+// 이음을 최소로 하려고 앞 조각부터 최대로 채우고 마지막 조각이 나머지를 갖는다.
+function lengthPlan(finished, usableLength) {
+  const max = usableLength - CUT_LOSS;
+  const count = Math.max(1, Math.ceil(finished / max));
+  const segments = [];
+  let left = finished;
+  for (let i = 0; i < count; i++) {
+    const seg = Math.min(max, left);
+    segments.push(seg);
+    left -= seg;
+  }
+  return segments;
+}
+
+// --- 2.3 가로 채우기 --------------------------------------------------------
+// 원장(유효폭)으로 채울 수 있는 만큼 채우고, 남는 폭은 100mm 낱개 템바로 메운다.
+// 예) 사각 400 → 300 × 1장 + 100 × 1장
+//
+// 단, 낱개로 메우는 폭이 원장 폭 이상이면 원장 1장으로 대신한다.
+// 자재량은 같거나 적으면서 개수는 적기 때문. (사각 남는 폭 250 → 낱개 3개 300 = 원장 1장)
+// 그래서 낱개는 최대 (유효폭 - 100) 폭까지만 쓴다. 사각 200 / 반달 195.
+//
+// 마지막 1장(낱개든 원장이든)은 폭을 잘라 쓰고 자투리는 버린다.
+function widthPlan(width, effectiveWidth) {
+  let boards = Math.floor(width / effectiveWidth);
+  const rest = width - boards * effectiveWidth;
+  let strips = rest > 0 ? Math.ceil(rest / STRIP_WIDTH) : 0;
+
+  let scrap = 0;
+  let scrapFrom = null;
+  if (strips > 0) {
+    if (strips * STRIP_WIDTH >= effectiveWidth) {
+      boards += 1;
+      strips = 0;
+      scrap = effectiveWidth - rest;
+      scrapFrom = scrap > 0 ? STOCK_BOARD : null;
+    } else {
+      scrap = strips * STRIP_WIDTH - rest;
+      scrapFrom = scrap > 0 ? STOCK_STRIP : null;
+    }
+  }
+
+  return {
+    boards,
+    strips,
+    /** 마지막 1장을 폭 재단하고 버리는 양 */
+    scrap,
+    /** 그 자투리가 원장에서 나오는지 낱개에서 나오는지 */
+    scrapFrom,
+    covered: boards * effectiveWidth + strips * STRIP_WIDTH,
+  };
+}
+
+/** 재단 조각 총 개수 (원장 조각 + 낱개 조각) */
+function pieceCount(width, effectiveWidth) {
+  const plan = widthPlan(width, effectiveWidth);
+  return plan.boards + plan.strips;
+}
+
+// --- 2.4 원장 유효 길이 -----------------------------------------------------
+function usableSheetLength(shapeSpec, trimEnds) {
+  return shapeSpec.sheetLength - (trimEnds ? TRIM_LOSS : 0);
+}
+
+// --- 2.5 원장 1개당 뽑을 수 있는 개수 ---------------------------------------
+// n × L + (n-1) × KERF ≤ 유효길이  →  n = floor((유효길이 + KERF) / (L + KERF))
+function piecesPerSheet(length, usableLength) {
+  if (length > usableLength) return 0;
+  return Math.floor((usableLength + KERF) / (length + KERF));
+}
+
+// --- 2.6 소요 원장 수 -------------------------------------------------------
+function sheetsNeeded(pieces, perSheet) {
+  if (perSheet <= 0) throw new CuttingError('NO_FIT', '원장에서 뽑을 수 없는 길이입니다.');
+  return Math.ceil(pieces / perSheet);
+}
+
+// --- 2.7 재단 횟수 (스토어 '재단 필요해요' 수량) ----------------------------
+// 원장 길이를 재단 길이로 나눈 횟수 × 가로 장수.
+// 예) 2440 / 800 → 3회, 폭 1200(사각 300) → 4장 → 3 × 4 = 12회
+function cutCount(usableLength, length, pieces) {
+  return Math.floor(usableLength / length) * pieces;
+}
+
+// --- 2.8 몰딩 수량 ----------------------------------------------------------
+// 필요 길이 = 고객 입력 가로. 2440/1200 조합으로 덮는다.
+// 1순위 총 개수 최소, 2순위 자투리 최소. 이음부 커프 손실은 계산하지 않는다.
+function moldingPlan(width) {
+  const [long, short] = MOLDING_LENGTHS;
+  let best = null;
+  for (let a = 0; a <= Math.ceil(width / long); a++) {
+    const rest = width - a * long;
+    const b = rest > 0 ? Math.ceil(rest / short) : 0;
+    const total = a * long + b * short;
+    const cand = { count: a + b, leftover: total - width, total, pieces: { [long]: a, [short]: b } };
+    if (!best || cand.count < best.count || (cand.count === best.count && cand.leftover < best.leftover)) {
+      best = cand;
+    }
+  }
+  const items = MOLDING_LENGTHS
+    .filter((len) => best.pieces[len] > 0)
+    .map((len) => ({ length: len, count: best.pieces[len] }));
+  return { items, count: best.count, total: best.total, leftover: best.leftover };
+}
+
+// --- 자투리 -----------------------------------------------------------------
+// (1) 세로 자르고 남은 부분: 자재 끝에 남는 토막.
+//     마지막 자재는 조각 수가 모자랄 수 있으므로 따로 계산한다.
+//     커프는 조각과 조각 사이에만 계산한다(2.5 모델). 남는 토막을 톱으로 떼어내는
+//     마지막 1컷(20mm)은 빼지 않은 값이다.
+function sheetTails(pieces, perSheet, usableLength, length) {
+  const sheets = sheetsNeeded(pieces, perSheet);
+  const lastCount = pieces - (sheets - 1) * perSheet;
+  const tailOf = (n) => usableLength - (n * length + (n - 1) * KERF);
+
+  const map = new Map();
+  const add = (tail, count) => {
+    if (tail > 0 && count > 0) map.set(tail, (map.get(tail) ?? 0) + count);
+  };
+  add(tailOf(perSheet), sheets - 1); // 가득 채운 자재
+  add(tailOf(lastCount), 1);         // 마지막 자재
+
+  return [...map.entries()]
+    .map(([tail, count]) => ({ length: tail, count }))
+    .sort((a, b) => b.length - a.length);
+}
+
+// (2) 가로 자르고 남은 부분: 마지막 100mm 낱개를 폭 재단하고 버리는 조각.
+//     widthPlan().scrap 참조.
+// (3) 몰딩 자투리는 moldingPlan().leftover 참조.
+
+function mergeWidthScraps(scraps) {
+  const map = new Map();
+  for (const s of scraps) {
+    const key = `${s.width}|${s.length}`;
+    const row = map.get(key) ?? { width: s.width, length: s.length, count: 0 };
+    row.count += s.count;
+    map.set(key, row);
+  }
+  return [...map.values()].sort((a, b) => b.width - a.width || b.length - a.length);
+}
+
+// --- 입력 검증 (CLAUDE.md 5-(4)) --------------------------------------------
+function validateItem(input) {
+  const errors = [];
+  const { width, height, useMolding = false, trimEnds = false } = input;
+
+  let shapeSpec = null;
+  try {
+    shapeSpec = resolveShape(input.shape);
+  } catch (e) {
+    errors.push({ code: e.code, message: e.message });
+  }
+
+  if (!findColor(input.color)) {
+    errors.push({ code: 'INVALID_COLOR', message: `알 수 없는 색상: ${input.color}` });
+  } else if (shapeSpec && !isColorAvailable(input.color, shapeSpec.key)) {
+    errors.push({
+      code: 'COLOR_NOT_IN_SHAPE',
+      message: `${shapeSpec.label}에는 ${input.color}이(가) 없습니다.`,
+    });
+  }
+  if (!Number.isFinite(width) || width <= 0) {
+    errors.push({ code: 'INVALID_WIDTH', message: '가로는 0보다 큰 값이어야 합니다.' });
+  }
+  if (!Number.isFinite(height) || height <= 0) {
+    errors.push({ code: 'INVALID_HEIGHT', message: '세로는 0보다 큰 값이어야 합니다.' });
+  } else if (shapeSpec) {
+    const finished = finishedLength(height, useMolding);
+    if (finished <= 0) {
+      errors.push({
+        code: 'CUT_LENGTH_TOO_SMALL',
+        message: `몰딩 ${MOLDING_DEDUCTION}mm 차감 후 완성 치수가 0 이하입니다. (세로 ${height})`,
+      });
+    }
+    // 세로 상한은 두지 않는다. 유효길이를 넘으면 나눠서 이어 붙인다(lengthPlan).
+  }
+  return errors;
+}
+
+/** 항목 1건 계산. 검증 실패 시 CuttingError 를 던진다. */
+function calculateItem(input) {
+  const errors = validateItem(input);
+  if (errors.length > 0) {
+    const err = new CuttingError(errors[0].code, errors[0].message);
+    err.errors = errors;
+    throw err;
+  }
+
+  const shapeSpec = resolveShape(input.shape);
+  const { width, height, useMolding = false, trimEnds = false } = input;
+
+  const finished = finishedLength(height, useMolding);
+  const usableLength = usableSheetLength(shapeSpec, trimEnds);
+  const plan = widthPlan(width, shapeSpec.effectiveWidth);
+  const pieces = plan.boards + plan.strips;
+
+  // 세로가 유효길이를 넘으면 여러 조각으로 나눠 이어 붙인다.
+  const segments = lengthPlan(finished, usableLength).map((segFinished) => {
+    const length = segFinished + CUT_LOSS;
+    const perSheet = piecesPerSheet(length, usableLength);
+    // 원장과 낱개는 자재가 다르므로 소요 수량도 따로 센다.
+    const stocks = [
+      { kind: STOCK_BOARD, stockWidth: shapeSpec.effectiveWidth, pieces: plan.boards },
+      { kind: STOCK_STRIP, stockWidth: STRIP_WIDTH, pieces: plan.strips },
+    ]
+      .filter((s) => s.pieces > 0)
+      .map((s) => ({ ...s, bars: sheetsNeeded(s.pieces, perSheet) }));
+
+    return {
+      finishedLength: segFinished,
+      cutLength: length,
+      piecesPerSheet: perSheet,
+      pieces,
+      stocks,
+      // 폭 자투리도 같이 재단되므로 길이는 완성 치수 기준. 조각마다 하나씩 나온다.
+      widthScrap: plan.scrap > 0 ? { width: plan.scrap, length: segFinished, count: 1 } : null,
+      widthScrapFrom: plan.scrapFrom,
+    };
+  });
+
+  const barsOf = (kind) => segments.reduce(
+    (n, seg) => n + seg.stocks.filter((s) => s.kind === kind).reduce((m, s) => m + s.bars, 0), 0);
+
+  return {
+    input: { ...input, useMolding, trimEnds },
+    shape: shapeSpec,
+    color: findColor(input.color),
+    width,
+    height,
+    finishedLength: finished,
+    /** 첫 조각 기준. 나눠진 경우 전체는 segments 참조. */
+    cutLength: segments[0].cutLength,
+    segments,
+    /** 이음 개수 (0이면 한 장으로 나옴) */
+    joints: segments.length - 1,
+    widthPlan: plan,
+    pieces,
+    usableLength,
+    piecesPerSheet: segments[0].piecesPerSheet,
+    sheets: barsOf(STOCK_BOARD),
+    strips: barsOf(STOCK_STRIP),
+    cutCount: segments.reduce((n, seg) => n + cutCount(usableLength, seg.cutLength, seg.pieces), 0),
+    molding: useMolding ? moldingPlan(width) : null,
+  };
+}
+
+// --- 3. 합산 / 정렬 ---------------------------------------------------------
+// 동일 사양(모양 + 색상 + 재단길이 + 자재)은 합산하여 한 줄로 출력. 정렬은 색상별.
+function colorRank(name) {
+  return COLOR_ORDER.has(name) ? COLOR_ORDER.get(name) : Number.MAX_SAFE_INTEGER;
+}
+
+function bySpec(a, b) {
+  return (
+    colorRank(a.color) - colorRank(b.color) ||
+    (a.color ?? '').localeCompare(b.color ?? '') ||
+    (a.shape ?? '').localeCompare(b.shape ?? '') ||
+    (a.kind === STOCK_STRIP ? 1 : 0) - (b.kind === STOCK_STRIP ? 1 : 0) ||
+    (a.cutLength ?? 0) - (b.cutLength ?? 0) ||
+    (a.length ?? 0) - (b.length ?? 0)
+  );
+}
+
+function calculate(inputs) {
+  const items = inputs.map(calculateItem);
+
+  // 원장당 개수는 끝단정리 여부에 따라 달라지므로 소요 수량 계산은 trimEnds 까지 묶는다.
+  const buckets = new Map();
+  for (const item of items) {
+    for (const seg of item.segments) {
+      for (const stock of seg.stocks) {
+        const key = [item.shape.label, item.color.name, seg.cutLength, item.input.trimEnds, stock.kind].join('|');
+        const bucket = buckets.get(key) ?? {
+          shape: item.shape.label,
+          shapeKey: item.shape.key,
+          color: item.color.name,
+          kind: stock.kind,
+          stockWidth: stock.stockWidth,
+          cutLength: seg.cutLength,
+          finishedLength: seg.finishedLength,
+          piecesPerSheet: seg.piecesPerSheet,
+          usableLength: item.usableLength,
+          sheetLength: item.shape.sheetLength,
+          trimEnds: item.input.trimEnds,
+          pieces: 0,
+          widthScraps: [],
+        };
+        bucket.pieces += stock.pieces;
+        if (seg.widthScrap && stock.kind === seg.widthScrapFrom) bucket.widthScraps.push(seg.widthScrap);
+        buckets.set(key, bucket);
+      }
+    }
+  }
+  for (const bucket of buckets.values()) {
+    bucket.bars = sheetsNeeded(bucket.pieces, bucket.piecesPerSheet);
+    // 자투리는 합산된 조각 수 기준으로 다시 계산한다.
+    // (2건을 한 자재에 몰아 뽑으면 자투리도 줄어들기 때문)
+    bucket.sheetTails = sheetTails(bucket.pieces, bucket.piecesPerSheet, bucket.usableLength, bucket.cutLength);
+  }
+
+  // 재단 지시서: 모양 + 색상 + 재단길이 + 자재
+  const cutMap = new Map();
+  for (const b of buckets.values()) {
+    const key = [b.shape, b.color, b.cutLength, b.kind].join('|');
+    const row = cutMap.get(key) ?? {
+      shape: b.shape, color: b.color, kind: b.kind, stockWidth: b.stockWidth,
+      cutLength: b.cutLength, finishedLength: b.finishedLength, pieces: 0,
+    };
+    row.pieces += b.pieces;
+    cutMap.set(key, row);
+  }
+  const cuts = [...cutMap.values()].sort(bySpec);
+
+  // 주문 수량: 모양 + 색상 + 자재
+  const stockMap = new Map();
+  for (const b of buckets.values()) {
+    const key = [b.shape, b.color, b.kind].join('|');
+    const row = stockMap.get(key) ?? {
+      shape: b.shape, shapeKey: b.shapeKey, color: b.color, kind: b.kind, bars: 0,
+    };
+    row.bars += b.bars;
+    stockMap.set(key, row);
+  }
+  const stocks = [...stockMap.values()].sort(bySpec);
+  const boards = stocks
+    .filter((s) => s.kind === STOCK_BOARD)
+    .map((s) => ({ shape: s.shape, shapeKey: s.shapeKey, color: s.color, sheets: s.bars }));
+  const stripOrders = stocks.filter((s) => s.kind === STOCK_STRIP);
+
+  // 몰딩: 색상 + 규격. 색상은 보드 색상을 따라간다.
+  const moldingMap = new Map();
+  for (const item of items) {
+    if (!item.molding) continue;
+    for (const m of item.molding.items) {
+      const key = `${item.color.name}|${m.length}`;
+      const row = moldingMap.get(key) ?? { color: item.color.name, length: m.length, count: 0 };
+      row.count += m.count;
+      moldingMap.set(key, row);
+    }
+  }
+  const moldings = [...moldingMap.values()].sort(bySpec);
+
+  // 자투리: 재단 지시서와 같은 단위로 묶는다.
+  const leftoverMap = new Map();
+  for (const b of buckets.values()) {
+    const key = [b.shape, b.color, b.cutLength, b.kind].join('|');
+    const row = leftoverMap.get(key) ?? {
+      shape: b.shape, shapeKey: b.shapeKey, color: b.color, kind: b.kind, stockWidth: b.stockWidth,
+      cutLength: b.cutLength, sheetTails: [], widthScraps: [],
+    };
+    row.sheetTails.push(...b.sheetTails);
+    row.widthScraps.push(...b.widthScraps); // 폭 자투리는 마지막 낱개에서 나온다
+    leftoverMap.set(key, row);
+  }
+  const leftovers = [...leftoverMap.values()]
+    .map((row) => ({
+      ...row,
+      sheetTails: [...row.sheetTails
+        .reduce((m, t) => m.set(t.length, (m.get(t.length) ?? 0) + t.count), new Map())]
+        .map(([length, count]) => ({ length, count }))
+        .sort((a, b) => b.length - a.length),
+      widthScraps: mergeWidthScraps(row.widthScraps),
+    }))
+    .sort(bySpec);
+
+  // 몰딩 자투리. 따로 떨어지는 조각이므로 길이별로 센다(합산하지 않는다).
+  const moldingLeftoverMap = new Map();
+  for (const item of items) {
+    if (!item.molding) continue;
+    const key = [item.color.name, item.shape.key, item.molding.leftover].join('|');
+    const row = moldingLeftoverMap.get(key) ??
+      { color: item.color.name, shapeKey: item.shape.key, leftover: item.molding.leftover, count: 0 };
+    row.count += 1;
+    moldingLeftoverMap.set(key, row);
+  }
+  const moldingLeftovers = [...moldingLeftoverMap.values()].sort(bySpec);
+
+  return {
+    items,
+    boards,
+    stripOrders,
+    cuts,
+    moldings,
+    leftovers,
+    moldingLeftovers,
+    cutCount: items.reduce((n, it) => n + it.cutCount, 0),
+    joints: items.reduce((n, it) => n + it.joints, 0),
+    barGroups: barGroupsOf([...buckets.values()].sort(bySpec)),
+    walls: items.map(wallLayout),
+  };
+}
+
+// --- 4. 도면 데이터 ---------------------------------------------------------
+// 숫자와 그림이 어긋나지 않도록, 계산에 쓴 버킷에서 그대로 뽑는다.
+
+/**
+ * 자재 1개(원장 또는 낱개)에 조각이 어떻게 들어가는지.
+ * 같은 모양의 자재는 묶어서 bars 개수로 센다.
+ */
+function barGroupsOf(buckets) {
+  const groups = new Map();
+  for (const b of buckets) {
+    let left = b.pieces;
+    while (left > 0) {
+      const count = Math.min(b.piecesPerSheet, left);
+      const used = count * b.cutLength + (count - 1) * KERF;
+      const key = [b.shape, b.color, b.kind, b.cutLength, count, b.trimEnds].join('|');
+      const group = groups.get(key) ?? {
+        shape: b.shape,
+        shapeKey: b.shapeKey,
+        color: b.color,
+        kind: b.kind,
+        stockWidth: b.stockWidth,
+        sheetLength: b.sheetLength,
+        usableLength: b.usableLength,
+        trimEnds: b.trimEnds,
+        cutLength: b.cutLength,
+        /** 자재 1개에 들어가는 조각 수 */
+        count,
+        used,
+        tail: b.usableLength - used,
+        /** 이렇게 생긴 자재가 몇 개인지 */
+        bars: 0,
+      };
+      group.bars += 1;
+      groups.set(key, group);
+      left -= count;
+    }
+  }
+  return [...groups.values()];
+}
+
+/**
+ * 벽면 배치도. 가로는 자재 열, 세로는 조각(이음)으로 나뉜다.
+ * 마지막 열은 폭을 잘라 쓰므로 실제 폭이 줄어든다.
+ */
+function wallLayout(item) {
+  const { boards, strips, scrap } = item.widthPlan;
+  const nominal = [
+    ...Array.from({ length: boards }, () => ({ kind: STOCK_BOARD, width: item.shape.effectiveWidth })),
+    ...Array.from({ length: strips }, () => ({ kind: STOCK_STRIP, width: STRIP_WIDTH })),
+  ];
+  const columns = nominal.map((c, i) => ({
+    ...c,
+    nominal: c.width,
+    width: i === nominal.length - 1 ? c.width - scrap : c.width,
+    trimmed: i === nominal.length - 1 && scrap > 0,
+  }));
+
+  const rows = [];
+  if (item.input.useMolding) rows.push({ kind: 'molding', length: MOLDING_DEDUCTION });
+  for (const seg of item.segments) {
+    rows.push({ kind: 'piece', length: seg.finishedLength, cutLength: seg.cutLength });
+  }
+
+  return { width: item.width, height: item.height, columns, rows };
+}
+
+/**
+ * 자투리 목록. 재단이 끝나고 손에 남는 조각을 한 곳에 모은다.
+ * 같은 크기·같은 출처는 묶어서 센다.
+ */
+function leftoverPieces(result) {
+  const map = new Map();
+  const add = (p) => {
+    const key = [p.shape, p.color, p.width, p.length, p.from].join('|');
+    const row = map.get(key) ?? { ...p, count: 0 };
+    row.count += p.count;
+    map.set(key, row);
+  };
+
+  for (const row of result.leftovers) {
+    for (const t of row.sheetTails) {
+      add({ shape: row.shape, shapeKey: row.shapeKey, color: row.color, kind: row.kind,
+        width: row.stockWidth, length: t.length, count: t.count, from: 'cut' });
+    }
+    for (const s of row.widthScraps) {
+      add({ shape: row.shape, shapeKey: row.shapeKey, color: row.color, kind: row.kind,
+        width: s.width, length: s.length, count: s.count, from: 'rip' });
+    }
+  }
+  for (const m of result.moldingLeftovers) {
+    if (m.leftover <= 0) continue;
+    add({ shape: '마감몰딩', shapeKey: m.shapeKey, color: m.color, kind: 'molding',
+      width: 15, length: m.leftover, count: m.count, from: 'molding' });
+  }
+
+  return [...map.values()].sort((a, b) => b.width * b.length - a.width * a.length);
+}
+
+const LEFTOVER_SOURCE = {
+  cut: '세로 자르고 남은 부분',
+  rip: '가로 자르고 남은 부분',
+  molding: '마감몰딩 남은 길이',
+};
+
+// --- 3. 출력 형식 -----------------------------------------------------------
+
+/** 같은 스토어 옵션에 색이 둘 이상 섞이면 괄호로 내역을 덧붙인다. */
+function colorNote(rows, countOf) {
+  return rows.length > 1 ? ` (${rows.map((r) => `${r.color} ${countOf(r)}`).join(', ')})` : '';
+}
+
+/**
+ * 주문 요약. 스토어 옵션명 그대로 적어서 주문서와 한 줄씩 대조할 수 있게 한다.
+ * 줄 순서도 스토어 옵션 순서를 따른다.
+ */
+function formatOrderSummary(result) {
+  const lines = result.boards.map((b) =>
+    `${STORE_OPTIONS.shape} / ${b.shape}, ${STORE_OPTIONS.color} / ` +
+    `${storeColorLabel(b.color, b.shapeKey)} : ${b.sheets}개`);
+
+  if (result.cutCount > 0) {
+    lines.push(`${STORE_OPTIONS.cutting} : ${result.cutCount}개`);
+  }
+
+  for (const length of MOLDING_LENGTHS) {
+    const rows = result.moldings.filter((m) => m.length === length);
+    if (rows.length === 0) continue;
+    const total = rows.reduce((sum, m) => sum + m.count, 0);
+    lines.push(`${STORE_OPTIONS.moldingByLength[length]} : ${total}개${colorNote(rows, (r) => r.count)}`);
+  }
+
+  for (const shapeKey of Object.keys(SHAPES)) {
+    const rows = result.stripOrders.filter((s) => s.shapeKey === shapeKey);
+    if (rows.length === 0) continue;
+    const total = rows.reduce((sum, s) => sum + s.bars, 0);
+    lines.push(`${STORE_OPTIONS.stripByShape[shapeKey]} : ${total}개${colorNote(rows, (r) => r.bars)}`);
+  }
+
+  return lines.join('\n');
+}
+
+/** 재단 지시서. 작업장용이라 색상 이름만 쓴다. 낱개는 100폭으로 표시. */
+function formatCuttingSheet(result) {
+  return result.cuts
+    .map((c) => {
+      const stock = c.kind === STOCK_STRIP ? ` ${STRIP_WIDTH}폭` : '';
+      return `${c.shape}-${c.color}${stock} : ${c.cutLength} X ${c.pieces}컷`;
+    })
+    .join('\n');
+}
+
+const NO_LEFTOVER_TEXT = '자투리 없음';
+
+/**
+ * 자투리 내역.
+ * 작업장 용어(원장/자투리) 대신 실제 조각 크기를 가로 X 세로로 적는다.
+ */
+function formatLeftovers(result) {
+  const lines = [];
+  for (const row of result.leftovers) {
+    for (const t of row.sheetTails) {
+      lines.push(`${row.shape}-${row.color} : 가로 ${row.stockWidth} X 세로 ${t.length}, ${t.count}개 (세로 자르고 남은 부분)`);
+    }
+    for (const s of row.widthScraps) {
+      lines.push(`${row.shape}-${row.color} : 가로 ${s.width} X 세로 ${s.length}, ${s.count}개 (가로 자르고 남은 부분)`);
+    }
+  }
+  for (const m of result.moldingLeftovers) {
+    if (m.leftover <= 0) {
+      lines.push(`마감몰딩-${m.color} : 남는 길이 없음`);
+    } else {
+      lines.push(`마감몰딩-${m.color} : ${m.leftover} 남음` + (m.count > 1 ? `, ${m.count}개` : ''));
+    }
+  }
+  return lines.join('\n');
+}
+
+/** 재단 지시서 + 자투리 (클립보드 복사용 전체 텍스트) */
+function formatCuttingSheetWithLeftovers(result) {
+  const leftovers = formatLeftovers(result) || NO_LEFTOVER_TEXT;
+  return `${formatCuttingSheet(result)}\n\n--- 자투리 ---\n${leftovers}`;
+}
+
+/**
+ * 스토어 판매가. 계산 로직과 분리한다. 가격이 바뀌면 이 파일만 고친다.
+ * 단가 미확인 항목은 null 로 두고, 견적에서 '단가 미정'으로 표시하며 합계에서 뺀다.
+ */
+
+
+
+const PRICES = {
+  /** 원장 (300 규격) */
+  board: {
+    half: { default: 40500 },              // 300 반달템바. 색상 무관
+    square: { default: 43000 },            // 300 사각템바. 색상 무관
+  },
+  /** 100mm 낱개 템바 */
+  strip: {
+    square: 16000,
+    half: 16000,
+  },
+  /** 마감몰딩 */
+  moldingByLength: {
+    2440: 8000,
+    1200: 4000,
+  },
+  /** 재단 1회당 단가 */
+  cutting: 500,
+};
+
+function boardPrice(shapeKey, colorName) {
+  const table = PRICES.board[shapeKey];
+  if (!table) return null;
+  return table.byColor?.[colorName] ?? table.default ?? null;
+}
+
+const stripPrice = (shapeKey) => PRICES.strip[shapeKey] ?? null;
+const moldingPrice = (length) => PRICES.moldingByLength[length] ?? null;
+const cuttingPrice = () => PRICES.cutting;
+
+/** 원 단위 표기 */
+const won = (n) => `${n.toLocaleString('ko-KR')}원`;
+
+/**
+ * 견적. 줄 구성과 순서는 주문 요약과 똑같이 맞춘다.
+ * 단가를 모르는 줄은 amount = null 이고 합계에서 빠진다.
+ */
+function quote(result) {
+  const lines = [];
+  const push = (label, count, unit) => {
+    if (count > 0) lines.push({ label, count, unit, amount: unit === null ? null : unit * count });
+  };
+
+  for (const b of result.boards) {
+    push(
+      `${STORE_OPTIONS.shape} / ${b.shape}, ${STORE_OPTIONS.color} / ${storeColorLabel(b.color, b.shapeKey)}`,
+      b.sheets,
+      boardPrice(b.shapeKey, b.color),
+    );
+  }
+  push(STORE_OPTIONS.cutting, result.cutCount, cuttingPrice());
+  for (const length of MOLDING_LENGTHS) {
+    const count = result.moldings.filter((m) => m.length === length).reduce((n, m) => n + m.count, 0);
+    push(STORE_OPTIONS.moldingByLength[length], count, moldingPrice(length));
+  }
+  for (const shapeKey of Object.keys(SHAPES)) {
+    const count = result.stripOrders.filter((s) => s.shapeKey === shapeKey).reduce((n, s) => n + s.bars, 0);
+    push(STORE_OPTIONS.stripByShape[shapeKey], count, stripPrice(shapeKey));
+  }
+
+  return {
+    lines,
+    total: lines.reduce((sum, l) => sum + (l.amount ?? 0), 0),
+    unknown: lines.filter((l) => l.amount === null),
+  };
+}
+
+function formatQuote(result) {
+  const q = quote(result);
+  const lines = q.lines.map((l) => (l.amount === null
+    ? `${l.label} : ${l.count}개 × 단가 미정`
+    : `${l.label} : ${l.count}개 × ${won(l.unit)} = ${won(l.amount)}`));
+  lines.push(`합계 : ${won(q.total)}`);
+  if (q.unknown.length > 0) {
+    lines.push(`※ 단가 미정 ${q.unknown.map((l) => l.label).join(', ')} 은(는) 합계에서 빠져 있습니다.`);
+  }
+  return lines.join('\n');
+}
+</script>
+
+<script>
+/* ===== UI ===== */
+(function () {
+  const $ = (sel) => document.querySelector(sel);
+  const SHAPE_KEYS = ['half', 'square'];
+  // 치수는 비워 둔 채로 시작한다
+  const blank = () => ({ shape: 'half', color: '화이트', width: NaN, height: NaN, useMolding: true, trimEnds: false });
+  const isBlank = (v) => v === undefined || v === null || v === '' || Number.isNaN(v);
+  const isEmptyItem = (it) => isBlank(it.width) && isBlank(it.height);
+
+  /** 아직 안 적은 칸은 오류로 보지 않는다 */
+  function visibleErrors(item) {
+    return validateItem(item).filter((e) => {
+      if (e.code === 'INVALID_WIDTH' && isBlank(item.width)) return false;
+      if (e.code === 'INVALID_HEIGHT' && isBlank(item.height)) return false;
+      return true;
+    });
+  }
+
+  let items = [blank()];
+  let lastText = { sum: '', cut: '', left: '', full: '', quote: '' };
+
+  function renderItems() {
+    const box = $('#items');
+    box.innerHTML = '';
+    items.forEach((item, idx) => {
+      const errors = visibleErrors(item);
+      const card = document.createElement('div');
+      card.className = 'item' + (errors.length ? ' invalid' : '');
+
+      const head = document.createElement('div');
+      head.className = 'item-head';
+      const no = document.createElement('span');
+      no.className = 'item-no';
+      no.textContent = '항목 ' + String(idx + 1).padStart(2, '0');
+      head.appendChild(no);
+      if (items.length > 1) {
+        const del = document.createElement('button');
+        del.className = 'link';
+        del.textContent = '삭제';
+        del.onclick = () => { items.splice(idx, 1); render(); };
+        head.appendChild(del);
+      }
+      card.appendChild(head);
+
+      const grid = document.createElement('div');
+      grid.className = 'item-grid';
+
+      // 모양
+      const fShape = document.createElement('div');
+      fShape.className = 'field';
+      fShape.innerHTML = '<label>모양</label>';
+      const seg = document.createElement('div');
+      seg.className = 'seg';
+      SHAPE_KEYS.forEach((key) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = SHAPES[key].label + ' ' + SHAPES[key].effectiveWidth;
+        b.setAttribute('aria-pressed', String(item.shape === key));
+        b.onclick = () => {
+          item.shape = key;
+          if (!isColorAvailable(item.color, key)) item.color = colorsForShape(key)[0].name;
+          render();
+        };
+        seg.appendChild(b);
+      });
+      fShape.appendChild(seg);
+      grid.appendChild(fShape);
+
+      // 색상
+      const fColor = document.createElement('div');
+      fColor.className = 'field';
+      const available = colorsForShape(item.shape);
+      fColor.innerHTML = '<label>색상 <span style="opacity:.7">(' + SHAPES[item.shape].label + ' ' + available.length + '색)</span></label>';
+      const sel = document.createElement('select');
+      available.forEach((c) => {
+        const o = document.createElement('option');
+        o.value = c.name;
+        o.textContent = storeColorLabel(c.name, item.shape);
+        if (c.name === item.color) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.onchange = (e) => { item.color = e.target.value; render(); };
+      fColor.appendChild(sel);
+      grid.appendChild(fColor);
+
+      // 가로 / 세로
+      [['width', '가로 (mm)'], ['height', '세로 (mm)']].forEach(([key, label]) => {
+        const f = document.createElement('div');
+        f.className = 'field';
+        f.innerHTML = '<label>' + label + '</label>';
+        const inp = document.createElement('input');
+        inp.type = 'number';
+        inp.value = isBlank(item[key]) ? '' : item[key];
+        inp.placeholder = '0';
+        inp.min = '1';
+        inp.step = '1';
+        inp.oninput = (e) => { item[key] = e.target.value === '' ? NaN : Number(e.target.value); render({ keepFocus: e.target }); };
+        inp.dataset.key = idx + ':' + key;
+        f.appendChild(inp);
+        grid.appendChild(f);
+      });
+
+      // 옵션
+      const fOpt = document.createElement('div');
+      fOpt.className = 'field span';
+      fOpt.innerHTML = '<label>옵션</label>';
+      const toggles = document.createElement('div');
+      toggles.className = 'toggles';
+      [['useMolding', '마감몰딩 (상단 −15)'], ['trimEnds', '끝단 정리 (−20)']].forEach(([key, label]) => {
+        const lab = document.createElement('label');
+        lab.className = 'toggle' + (item[key] ? ' on' : '');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = !!item[key];
+        cb.onchange = () => { item[key] = cb.checked; render(); };
+        lab.appendChild(cb);
+        lab.appendChild(document.createTextNode(label));
+        toggles.appendChild(lab);
+      });
+      fOpt.appendChild(toggles);
+      grid.appendChild(fOpt);
+
+      card.appendChild(grid);
+
+      if (errors.length) {
+        const e = document.createElement('div');
+        e.className = 'err';
+        e.textContent = errors.map((x) => x.message).join(' / ');
+        card.appendChild(e);
+      }
+      box.appendChild(card);
+    });
+  }
+
+  function renderOutput() {
+    const valid = items.filter((i) => validateItem(i).length === 0);
+    const sumEl = $('#out-sum'), cutEl = $('#out-cut'), leftEl = $('#out-left');
+
+    if (valid.length === 0) {
+      const msg = items.every(isEmptyItem)
+        ? '가로·세로를 입력하면 결과가 나옵니다.'
+        : '입력값을 확인해 주세요.';
+      lastText = { sum: '', cut: '', left: '', full: '', quote: '' };
+      [sumEl, cutEl, leftEl].forEach((el) => { el.textContent = msg; el.classList.add('empty'); });
+      $('#detail').innerHTML = '';
+      $('#quote').innerHTML = '';
+      $('#quote-note').textContent = '';
+      $('#walls').innerHTML = '';
+      $('#cuts').innerHTML = '';
+      $('#wall-count').textContent = '';
+      $('#cut-count').textContent = '';
+      $('#scraps').innerHTML = '';
+      $('#scrap-count').textContent = '';
+      $('#legend').innerHTML = '';
+      return;
+    }
+
+    const result = calculate(valid);
+    lastText = {
+      sum: formatOrderSummary(result),
+      cut: formatCuttingSheet(result),
+      left: formatLeftovers(result),
+      full: formatCuttingSheetWithLeftovers(result),
+      quote: formatQuote(result),
+    };
+    sumEl.textContent = lastText.sum;
+    cutEl.textContent = lastText.cut;
+    leftEl.textContent = lastText.left || NO_LEFTOVER_TEXT;
+    [sumEl, cutEl, leftEl].forEach((el) => el.classList.remove('empty'));
+
+    const rows = result.items.map((it) => [
+      it.shape.label + ' / ' + storeColorLabel(it.color.name, it.shape.key),
+      it.width + ' × ' + it.height,
+      it.widthPlan.boards + ' + ' + it.widthPlan.strips,
+      it.segments.map((s) => s.finishedLength).join(' + '),
+      it.segments.map((s) => s.cutLength).join(' + '),
+      it.sheets,
+      it.strips,
+      it.cutCount,
+    ]);
+    const head = ['사양', '입력 치수', '원장+낱개', '완성세로', '재단길이', '원장', '낱개', '재단횟수'];
+    $('#detail').innerHTML =
+      '<thead><tr>' + head.map((h) => '<th>' + h + '</th>').join('') + '</tr></thead>' +
+      '<tbody>' + rows.map((r) => '<tr>' + r.map((c, i) =>
+        '<td' + (i === r.length - 1 ? ' class="strong"' : '') + '>' + c + '</td>').join('') + '</tr>').join('') + '</tbody>';
+
+    renderQuote(result);
+    renderDrawings(result);
+  }
+
+  // --- 도면 ---------------------------------------------------------------
+  const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const el = (tag, attrs, inner) =>
+    '<' + tag + ' ' + Object.entries(attrs).map(([k, v]) => k + '="' + esc(v) + '"').join(' ') +
+    (inner === undefined ? ' />' : '>' + inner + '</' + tag + '>');
+  const rect = (x, y, w, h, cls) => el('rect', { x, y, width: Math.max(w, 0.5), height: Math.max(h, 0.5), class: cls });
+  const txt = (x, y, s, opts = {}) => el('text', Object.assign(
+    { x, y, 'text-anchor': opts.anchor || 'middle', class: opts.cls || '' },
+    opts.fill ? { style: 'fill:' + opts.fill } : {},
+  ), esc(s));
+
+  function figure(svg, caption) {
+    const f = document.createElement('figure');
+    f.className = 'fig';
+    f.innerHTML = svg + '<figcaption>' + caption + '</figcaption>';
+    return f;
+  }
+
+  // --- 제품 색 ---
+  const FALLBACK = '#D8CBA8';
+  function relLum(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  /** 칠한 색 위에서 읽히는 글자색 */
+  const inkOn = (hex) => (relLum(hex) > 0.42 ? '#16170F' : '#F7F7F1');
+  /** 몰딩 띠는 보드와 같은 색이라 살짝 어둡게 해서 구분한다 */
+  function shade(hex, f) {
+    const n = parseInt(hex.slice(1), 16);
+    const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+      .map((v) => Math.max(0, Math.min(255, Math.round(v * (1 - f)))));
+    return '#' + ch.map((v) => v.toString(16).padStart(2, '0')).join('');
+  }
+
+  /** 낱개는 같은 제품 색에 빗금을 얹어 원장과 구분한다 */
+  const defs = (uid, hex) =>
+    '<defs><pattern id="strip-' + uid + '" width="7" height="7" ' +
+    'patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+    '<rect width="7" height="7" fill="' + hex + '" />' +
+    '<line x1="0" y1="0" x2="0" y2="7" stroke="' + inkOn(hex) + '" stroke-width="2" opacity="0.34" />' +
+    '</pattern></defs>';
+
+  const paint = (x, y, w, h, fill) =>
+    el('rect', { x, y, width: Math.max(w, 0.5), height: Math.max(h, 0.5), style: 'fill:' + fill });
+
+  const cell = (x, y, w, h, kind, uid, hex) => (kind === 'strip'
+    ? el('rect', { x, y, width: Math.max(w, 0.5), height: Math.max(h, 0.5), fill: 'url(#strip-' + uid + ')' })
+    : paint(x, y, w, h, hex));
+
+  /** 열 구성 요약: 295×4 + 낱개 100→20 */
+  function columnSummary(columns) {
+    const runs = [];
+    for (const c of columns) {
+      const name = (c.kind === 'strip' ? '낱개 ' : '') +
+        (c.trimmed ? c.nominal + '→' + c.width : String(c.width));
+      const last = runs[runs.length - 1];
+      if (last && last.name === name) last.n += 1;
+      else runs.push({ name, n: 1 });
+    }
+    return runs.map((r) => (r.n > 1 ? r.name + '×' + r.n : r.name)).join(' + ');
+  }
+
+  /** 벽면 배치도: 가로는 자재 열, 세로는 조각(이음). 자투리는 칸을 떼어 그린다 */
+  function wallFigure(item, wall, no, uid) {
+    const PAD = { l: 6, t: 48, r: 72, b: 30 };
+    const MIN_COL = 11;   // 얇은 열도 보이게 최소 폭을 준다
+    const MIN_ROW = 9;
+    const GAP = 18;       // 결과물과 자투리 사이 간격
+    const scale = Math.min(340 / wall.width, 320 / wall.height);
+
+    const cols = wall.columns.map((c) => ({ ...c, scaled: c.width * scale, draw: Math.max(c.width * scale, MIN_COL) }));
+    const rows = wall.rows.map((r) => ({ ...r, scaled: r.length * scale, draw: Math.max(r.length * scale, MIN_ROW) }));
+    const W = cols.reduce((n, c) => n + c.draw, 0);
+    const H = rows.reduce((n, r) => n + r.draw, 0);
+    const offScale = cols.some((c) => c.draw > c.scaled + 0.5) || rows.some((r) => r.draw > r.scaled + 0.5);
+
+    const scrapMm = item.widthPlan.scrap;
+    const scrapW = scrapMm > 0 ? Math.max(scrapMm * scale, 13) : 0;
+    const scrapX = PAD.l + W + GAP;
+    const totalW = W + (scrapW > 0 ? GAP + scrapW : 0);
+
+    const hex = swatchOf(item.color.name, item.shape.key) || FALLBACK;
+    const moldHex = shade(hex, 0.18);
+    const parts = [defs(uid, hex)];
+
+    let y = PAD.t;
+    for (const row of rows) {
+      let x = PAD.l;
+      for (const col of cols) {
+        if (row.kind === 'molding') parts.push(paint(x, y, col.draw, row.draw, moldHex));
+        else parts.push(cell(x, y, col.draw, row.draw, col.kind, uid, hex));
+        parts.push(el('rect', { x, y, width: col.draw, height: row.draw, class: 'thin' }));
+        x += col.draw;
+      }
+      if (scrapW > 0 && row.kind === 'piece') {
+        parts.push(rect(scrapX, y, scrapW, row.draw, 'waste'));
+        parts.push(el('rect', { x: scrapX, y, width: scrapW, height: row.draw, class: 'edge' }));
+      }
+      parts.push(txt(PAD.l + totalW + 7, y + row.draw / 2 + 3.5,
+        row.kind === 'molding' ? '몰딩 ' + row.length : String(row.length), { anchor: 'start', cls: 'dim' }));
+      y += row.draw;
+    }
+
+    // 열 치수. 같은 열이 이어지면 묶어서 한 번만 적는다 (295×5)
+    const runs = [];
+    let cx = PAD.l;
+    for (const col of cols) {
+      const name = col.trimmed ? col.nominal + '→' + col.width : String(col.width);
+      const last = runs[runs.length - 1];
+      if (last && last.name === name && last.kind === col.kind) { last.n += 1; last.w += col.draw; }
+      else runs.push({ name, kind: col.kind, n: 1, x: cx, w: col.draw });
+      cx += col.draw;
+    }
+
+    let stagger = 0;
+    const putLabel = (mid, text) => {
+      const top = PAD.t - (stagger % 2 === 0 ? 17 : 33);
+      parts.push(el('line', { x1: mid, y1: PAD.t - 2, x2: mid, y2: top, class: 'thin' }));
+      parts.push(txt(mid, top - 4, text, { cls: 'dim' }));
+      stagger += 1;
+    };
+    for (const run of runs) {
+      const label = run.n > 1 ? run.name + '×' + run.n : run.name;
+      const mid = run.x + run.w / 2;
+      if (run.w >= label.length * 6.6 + 8) parts.push(txt(mid, PAD.t - 9, label, { cls: 'dim' }));
+      else putLabel(mid, label);
+    }
+    if (scrapW > 0) putLabel(scrapX + scrapW / 2, '자투리 ' + scrapMm);
+
+    parts.push(el('rect', { x: PAD.l, y: PAD.t, width: W, height: H, class: 'edge' }));
+    parts.push(txt(PAD.l + W / 2, PAD.t + H + 17, '결과물 가로 ' + wall.width, { cls: 'dim' }));
+    if (scrapW > 0) parts.push(txt(scrapX + scrapW / 2, PAD.t + H + 17, '버림', { cls: 'dim' }));
+
+    const vb = [0, 0, PAD.l + totalW + PAD.r, PAD.t + H + PAD.b];
+    const label = item.shape.label + ' ' + item.color.name + ' ' + wall.width + ' × ' + wall.height;
+    const svg = el('svg', {
+      class: 'dwg', viewBox: vb.join(' '), width: vb[2], height: vb[3],
+      role: 'img', 'aria-label': label + ' 벽면 배치도. 열 구성 ' + columnSummary(wall.columns),
+    }, parts.join(''));
+
+    const caption = [
+      '<b>항목 ' + String(no).padStart(2, '0') + '</b>',
+      label,
+      '열 구성 ' + columnSummary(wall.columns),
+      item.joints > 0 ? '이음 ' + item.joints + '군데' : '이음 없음',
+      ...(scrapMm > 0
+        ? Object.entries(item.segments.reduce((acc, seg) => {
+            acc[seg.finishedLength] = (acc[seg.finishedLength] ?? 0) + 1;
+            return acc;
+          }, {})).map(([len, n]) => '자투리 가로 ' + scrapMm + ' X 세로 ' + len + ', ' + n + '개')
+        : ['폭 자투리 없음']),
+      offScale ? '<span style="opacity:.75">얇은 열·몰딩은 보이도록 넓게 그림</span>' : '',
+    ].filter(Boolean).map((t) => '<span>' + t + '</span>').join('');
+    return figure(svg, caption);
+  }
+
+  /** 재단 도면: 자재 하나에 조각이 어떻게 들어가는지. 자투리는 떼어 그린다 */
+  function barFigure(g, uid) {
+    const PAD = { l: 4, t: 26, r: 4, b: 24 };
+    const GAP = 6;
+    const scale = 460 / g.sheetLength;
+    const BAR = 30;
+    const hex = swatchOf(g.color, g.shapeKey) || FALLBACK;
+    const parts = [defs(uid, hex)];
+    const y = PAD.t;
+    let x = PAD.l;
+
+    for (let i = 0; i < g.count; i += 1) {
+      const w = g.cutLength * scale;
+      parts.push(cell(x, y, w, BAR, g.kind, uid, hex));
+      parts.push(el('rect', { x, y, width: w, height: BAR, class: 'edge' }));
+      if (w > 34) parts.push(txt(x + w / 2, y + BAR / 2 + 4, String(g.cutLength), { fill: inkOn(hex) }));
+      x += w;
+      if (i < g.count - 1) {
+        parts.push(rect(x, y, KERF * scale, BAR, 'waste')); // 톱날 손실
+        x += KERF * scale;
+      }
+    }
+
+    const usedEnd = x;
+    if (g.tail > 0) {
+      x += GAP; // 잘라내면 따로 떨어지는 조각
+      const w = g.tail * scale;
+      parts.push(rect(x, y, w, BAR, 'waste'));
+      parts.push(el('rect', { x, y, width: w, height: BAR, class: 'edge' }));
+      const label = w > 96 ? '자투리 ' + g.tail : String(g.tail);
+      if (w > 34) parts.push(txt(x + w / 2, y + BAR / 2 + 4, label, { cls: 'dim' }));
+      else parts.push(txt(x + w / 2, y - 5, String(g.tail), { cls: 'dim' }));
+      parts.push(txt(x + w / 2, y + BAR + 15, '버림', { cls: 'dim' }));
+      x += w;
+    }
+
+    // 원장 전체 길이 표시
+    const span = g.sheetLength * scale;
+    parts.push(el('line', {
+      x1: PAD.l, y1: PAD.t - 10, x2: PAD.l + span, y2: PAD.t - 10,
+      stroke: 'currentColor', 'stroke-width': 1, 'stroke-dasharray': '4 3', opacity: 0.5,
+    }));
+    parts.push(txt(PAD.l, PAD.t - 14, '0', { anchor: 'start', cls: 'dim' }));
+    parts.push(txt(PAD.l + span, PAD.t - 14, String(g.sheetLength), { anchor: 'end', cls: 'dim' }));
+    parts.push(txt(PAD.l + (usedEnd - PAD.l) / 2, y + BAR + 15,
+      g.count + '컷' + (g.trimEnds ? ' · 끝단정리 20 별도' : ''), { cls: 'dim' }));
+
+    const stock = g.kind === 'strip' ? '낱개 100폭' : '원장 ' + g.stockWidth + '폭';
+    const label = g.shape + '-' + g.color + ' ' + stock;
+    const vb = [0, 0, Math.max(PAD.l + span, x) + PAD.r, PAD.t + BAR + PAD.b];
+    const svg = el('svg', {
+      class: 'dwg', viewBox: vb.join(' '), width: vb[2], height: vb[3],
+      role: 'img', 'aria-label': label + ' 재단 도면, ' + g.cutLength + ' ' + g.count + '컷',
+    }, parts.join(''));
+
+    const caption = [
+      '<b>' + label + '</b>',
+      '× ' + g.bars + '개',
+      g.cutLength + ' × ' + g.count + '컷',
+      g.tail > 0
+        ? '자투리 가로 ' + g.stockWidth + ' X 세로 ' + g.tail + ', ' + g.bars + '개'
+        : '자투리 없음',
+    ].map((t) => '<span>' + t + '</span>').join('');
+    return figure(svg, caption);
+  }
+
+  /** 마감몰딩 도면: 주문한 몰딩 길이에서 얼마를 쓰고 얼마가 남는지 */
+  function moldingFigure(item, no) {
+    const plan = item.molding;
+    const PAD = { l: 4, t: 18, r: 4, b: 22 };
+    const scale = 470 / plan.total;
+    const BAR = 22;
+    const hex = shade(swatchOf(item.color.name, item.shape.key) || FALLBACK, 0.18);
+    const parts = [];
+    const y = PAD.t;
+    let x = PAD.l;
+    let consumed = 0;
+
+    for (const spec of plan.items) {
+      for (let i = 0; i < spec.count; i += 1) {
+        const w = spec.length * scale;
+        const usedW = Math.max(0, Math.min(spec.length, item.width - consumed)) * scale;
+        if (usedW > 0) parts.push(paint(x, y, usedW, BAR, hex));
+        if (w - usedW > 0) parts.push(rect(x + usedW, y, w - usedW, BAR, 'waste'));
+        parts.push(el('rect', { x, y, width: w, height: BAR, class: 'edge' }));
+        if (w > 46) parts.push(txt(x + w / 2, y - 5, String(spec.length), { cls: 'dim' }));
+        consumed += spec.length;
+        x += w;
+      }
+    }
+
+    const W = plan.total * scale;
+    parts.push(txt(PAD.l + W / 2, PAD.t + BAR + 15,
+      '필요 ' + item.width + ' + 남음 ' + plan.leftover, { cls: 'dim' }));
+
+    const label = '마감몰딩-' + item.color.name;
+    const vb = [0, 0, PAD.l + W + PAD.r, PAD.t + BAR + PAD.b];
+    const svg = el('svg', {
+      class: 'dwg', viewBox: vb.join(' '), width: vb[2], height: vb[3],
+      role: 'img', 'aria-label': label + ' 도면. 필요 ' + item.width + ', 남음 ' + plan.leftover,
+    }, parts.join(''));
+
+    const caption = [
+      '<b>' + label + '</b>',
+      '항목 ' + String(no).padStart(2, '0'),
+      plan.items.map((m) => m.length + ' × ' + m.count + '개').join(' + '),
+      plan.leftover > 0 ? plan.leftover + ' 남음' : '남는 길이 없음',
+    ].map((t) => '<span>' + t + '</span>').join('');
+    return figure(svg, caption);
+  }
+
+  /** 자투리 조각 하나를 실제 비율로 그린다 */
+  function scrapFigure(p, uid) {
+    const BOX = 116;
+    const MIN = 7;
+    const scale = Math.min(BOX / p.width, BOX / p.length, 0.36);
+    const w = Math.max(p.width * scale, MIN);
+    const h = Math.max(p.length * scale, MIN);
+    const PAD = { l: 3, t: 14, r: 3, b: 3 };
+
+    const hex = p.from === 'molding'
+      ? shade(swatchOf(p.color, p.shapeKey) || FALLBACK, 0.18)
+      : (swatchOf(p.color, p.shapeKey) || FALLBACK);
+
+    const parts = [defs(uid, hex)];
+    parts.push(p.kind === 'strip'
+      ? el('rect', { x: PAD.l, y: PAD.t, width: w, height: h, fill: 'url(#strip-' + uid + ')' })
+      : paint(PAD.l, PAD.t, w, h, hex));
+    parts.push(el('rect', { x: PAD.l, y: PAD.t, width: w, height: h, class: 'edge' }));
+    parts.push(txt(PAD.l + w / 2, PAD.t - 4, String(p.width), { cls: 'dim' }));
+    parts.push(txt(PAD.l + w + 5, PAD.t + h / 2 + 3.5, String(p.length), { anchor: 'start', cls: 'dim' }));
+
+    const vb = [0, 0, PAD.l + w + PAD.r + 42, PAD.t + h + PAD.b];
+    const label = p.shape + '-' + p.color + ' 자투리 가로 ' + p.width + ' X 세로 ' + p.length;
+    const svg = el('svg', {
+      class: 'dwg', viewBox: vb.join(' '), width: vb[2], height: vb[3],
+      role: 'img', 'aria-label': label + ', ' + p.count + '개',
+    }, parts.join(''));
+
+    const caption = [
+      '<b>' + p.shape + '-' + p.color + '</b>',
+      '가로 ' + p.width + ' X 세로 ' + p.length + ', ' + p.count + '개',
+      LEFTOVER_SOURCE[p.from],
+    ].map((t) => '<span>' + t + '</span>').join('');
+    return figure(svg, caption);
+  }
+
+  function renderScraps(result, uidStart) {
+    const box = $('#scraps');
+    box.innerHTML = '';
+    const pieces = leftoverPieces(result);
+    $('#scrap-count').textContent = pieces.length > 0
+      ? pieces.reduce((n, p) => n + p.count, 0) + '조각'
+      : '';
+    if (pieces.length === 0) {
+      box.innerHTML = '<p class="scrap-none">남는 자투리가 없습니다.</p>';
+      return;
+    }
+    let uid = uidStart;
+    pieces.forEach((p) => box.appendChild(scrapFigure(p, uid += 1)));
+  }
+
+  function renderLegend(result) {
+    const seen = new Map();
+    for (const b of result.boards) seen.set(b.color + '|' + b.shapeKey, b);
+    const chips = [...seen.values()].map((b) => {
+      const hex = swatchOf(b.color, b.shapeKey) || FALLBACK;
+      return '<span><i style="background:' + hex + '"></i>' +
+        storeColorLabel(b.color, b.shapeKey) + '</span>';
+    });
+    chips.push('<span><i class="hatch"></i>100 낱개</span>');
+    chips.push('<span><i class="waste"></i>자투리</span>');
+    $('#legend').innerHTML = chips.join('');
+  }
+
+  function renderDrawings(result) {
+    renderLegend(result);
+    const walls = $('#walls');
+    const cuts = $('#cuts');
+    walls.innerHTML = '';
+    cuts.innerHTML = '';
+
+    let uid = 0;
+    result.items.forEach((item, i) => walls.appendChild(wallFigure(item, result.walls[i], i + 1, uid += 1)));
+    result.barGroups.forEach((g) => cuts.appendChild(barFigure(g, uid += 1)));
+    result.items.forEach((item, i) => {
+      if (item.molding) cuts.appendChild(moldingFigure(item, i + 1));
+    });
+
+    $('#wall-count').textContent = result.items.length + '건';
+    const bars = result.barGroups.reduce((n, g) => n + g.bars, 0);
+    const moldBars = result.moldings.reduce((n, m) => n + m.count, 0);
+    $('#cut-count').textContent = '자재 ' + bars + '개' + (moldBars > 0 ? ' + 몰딩 ' + moldBars + '개' : '');
+
+    renderScraps(result, uid + 100);
+  }
+
+  function renderQuote(result) {
+    const q = quote(result);
+    const head = ['항목', '수량', '단가', '금액'];
+    const rows = q.lines.map((l) => (
+      '<tr>' +
+      '<td>' + l.label + '</td>' +
+      '<td>' + l.count + '개</td>' +
+      (l.amount === null
+        ? '<td class="unknown" colspan="2">단가 미정</td>'
+        : '<td>' + won(l.unit) + '</td><td class="strong">' + won(l.amount) + '</td>') +
+      '</tr>'
+    ));
+    rows.push(
+      '<tr class="total"><td>합계</td><td></td><td></td><td>' + won(q.total) + '</td></tr>');
+
+    $('#quote').innerHTML =
+      '<thead><tr>' + head.map((h) => '<th>' + h + '</th>').join('') + '</tr></thead>' +
+      '<tbody>' + rows.join('') + '</tbody>';
+    $('#quote-note').textContent = q.unknown.length > 0
+      ? '단가 미정: ' + q.unknown.map((l) => l.label).join(', ') + ' — 합계에서 빠져 있습니다.'
+      : '';
+  }
+
+  function render(opts) {
+    const focus = opts && opts.keepFocus ? opts.keepFocus.dataset.key : null;
+    const pos = opts && opts.keepFocus ? opts.keepFocus.selectionStart : null;
+    renderItems();
+    renderOutput();
+    if (focus) {
+      const next = document.querySelector('[data-key="' + focus + '"]');
+      if (next) { next.focus(); try { next.setSelectionRange(pos, pos); } catch (e) {} }
+    }
+  }
+
+  $('#add').onclick = () => { items.push(blank()); render(); };
+  $('#reset').onclick = () => { items = [blank()]; render(); };
+  // 클립보드 API 는 iframe 안에서 막히는 경우가 있다.
+  // 1) navigator.clipboard → 2) execCommand → 3) 직접 복사용 상자를 띄운다.
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e) { /* 다음 방법으로 */ }
+
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) return true;
+    } catch (e) { /* 수동 복사로 */ }
+
+    return false;
+  }
+
+  function showManualCopy(text) {
+    const box = $('#manual-copy');
+    const area = $('#manual-copy-text');
+    area.value = text;
+    box.style.display = 'flex';
+    area.focus();
+    area.select();
+  }
+
+  $('#manual-copy-close').onclick = () => { $('#manual-copy').style.display = 'none'; };
+
+  document.querySelectorAll('[data-copy]').forEach((btn) => {
+    btn.onclick = async () => {
+      const text = lastText[btn.dataset.copy];
+      if (!text) return;
+      const label = btn.dataset.label || btn.textContent;
+      btn.dataset.label = label;
+      const ok = await copyText(text);
+      if (ok) {
+        btn.textContent = '복사됨';
+        setTimeout(() => { btn.textContent = label; }, 1200);
+      } else {
+        showManualCopy(text);
+      }
+    };
+  });
+
+  render();
+})();
+</script>
