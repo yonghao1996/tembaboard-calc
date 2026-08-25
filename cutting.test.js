@@ -55,7 +55,7 @@ test('TC-1 반달 / 화이트 / 1200 × 2000 / 몰딩 O / 끝단정리 X', () =>
   }]);
   assert.equal(
     formatCuttingSheet(result),
-    ['반달-화이트 : 1990 X 4컷', '반달-화이트 100폭 : 1990 X 1컷'].join('\n'),
+    ['반달-화이트 : 1985 X 4컷', '반달-화이트 100폭 : 1985 X 1컷'].join('\n'),
   );
   assert.equal(
     formatOrderSummary(result),
@@ -130,7 +130,7 @@ test('TC-5 동일 모양·색상·재단길이 2건은 한 줄로 합산', () =>
   // 원장 4 + 2 = 6컷, 낱개 1 + 1 = 2컷
   assert.equal(
     formatCuttingSheet(result),
-    ['반달-화이트 : 1990 X 6컷', '반달-화이트 100폭 : 1990 X 2컷'].join('\n'),
+    ['반달-화이트 : 1985 X 6컷', '반달-화이트 100폭 : 1985 X 2컷'].join('\n'),
   );
   assert.deepEqual(result.boards, [{ shape: '반달', shapeKey: 'half', color: '화이트', sheets: 6 }]);
 });
@@ -145,9 +145,9 @@ test('TC-5 보강: 사양이 다르면 줄을 나눈다', () => {
   assert.equal(
     formatCuttingSheet(result),
     [
-      '사각-화이트 : 1205 X 3컷',
-      '반달-진한티크 : 1990 X 4컷',
-      '반달-진한티크 100폭 : 1990 X 1컷',
+      '사각-화이트 : 1200 X 3컷',
+      '반달-진한티크 : 1985 X 4컷',
+      '반달-진한티크 100폭 : 1985 X 1컷',
     ].join('\n'),
   );
 });
@@ -215,7 +215,7 @@ test('세로 3000 사각 1200 — 조각별로 자재를 따로 센다', () => {
   }]);
   assert.equal(
     formatCuttingSheet(result),
-    ['사각-화이트 : 555 X 4컷', '사각-화이트 : 2440 X 4컷'].join('\n'),
+    ['사각-화이트 : 550 X 4컷', '사각-화이트 : 2435 X 4컷'].join('\n'),
   );
   assert.ok(formatOrderSummary(result).includes('템바보드 타입 / 사각, 색상 / JA3011-화이트 : 5개'));
 });
@@ -409,7 +409,7 @@ test('자투리가 하나도 없으면 그렇게 적는다', () => {
   assert.equal(formatLeftovers(result), '');
   assert.equal(
     formatCuttingSheetWithLeftovers(result),
-    ['반달-화이트 : 800 X 3컷', '', '--- 자투리 ---', '자투리 없음'].join('\n'),
+    ['반달-화이트 : 795 X 3컷', '', '--- 자투리 ---', '자투리 없음'].join('\n'),
   );
 });
 
@@ -449,7 +449,7 @@ test('끝단정리 여부가 다르면 자재당 개수를 따로 계산하고 �
     { shape: 'half', color: '화이트', width: 590, height: 795, trimEnds: true },  // 2컷 / 자재당 2 → 1개
   ]);
 
-  assert.equal(formatCuttingSheet(result), '반달-화이트 : 800 X 4컷');
+  assert.equal(formatCuttingSheet(result), '반달-화이트 : 795 X 4컷');
   assert.deepEqual(result.boards, [{ shape: '반달', shapeKey: 'half', color: '화이트', sheets: 2 }]);
 });
 
@@ -491,7 +491,7 @@ test('재단 도면 — 자재 1개에 들어가는 조각과 남는 길이', ()
   assert.deepEqual(result.barGroups, [{
     shape: '사각', shapeKey: 'square', color: '화이트', kind: 'board', stockWidth: 300,
     sheetLength: 2440, usableLength: 2440, trimEnds: false,
-    cutLength: 805, count: 2, used: 1630, tail: 810, bars: 1,
+    cutLength: 805, finishedLength: 800, count: 2, used: 1630, tail: 810, bars: 1,
   }]);
 });
 

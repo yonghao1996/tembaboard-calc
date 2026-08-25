@@ -60,7 +60,8 @@ export function finishedLength(height, useMolding) {
 
 // 재단하면 조각 세로가 5mm 줄어든다. 완성 치수를 맞추려면 그만큼 크게 잘라야 하므로
 // 원장에서 실제로 잘라내는 길이(= 원장 점유 길이)는 완성 치수 + 5.
-// 재단 지시서에 찍히는 값도 이 길이다.
+// 자재 소요량·재단 횟수·자투리는 전부 이 길이로 센다.
+// 다만 화면과 지시서에 적는 숫자는 완성 치수다 (formatCuttingSheet 참고).
 export function cutLength(height, useMolding) {
   return finishedLength(height, useMolding) + CUT_LOSS;
 }
@@ -486,6 +487,8 @@ export function barGroupsOf(buckets) {
         usableLength: b.usableLength,
         trimEnds: b.trimEnds,
         cutLength: b.cutLength,
+        /** 도면에 적는 값. 재단 지시서와 같게 완성 치수를 쓴다. */
+        finishedLength: b.finishedLength,
         /** 자재 1개에 들어가는 조각 수 */
         count,
         used,
@@ -602,12 +605,16 @@ export function formatOrderSummary(result) {
   return lines.join('\n');
 }
 
-/** 재단 지시서. 작업장용이라 색상 이름만 쓴다. 낱개는 100폭으로 표시. */
+/**
+ * 재단 지시서. 작업장용이라 색상 이름만 쓴다. 낱개는 100폭으로 표시.
+ * 적는 숫자는 **완성 치수**다. 재단손실 5mm 는 자르는 쪽이 감안한다.
+ * (읽는 사람이 주문한 치수를 그대로 보게 하려는 것. 원장 점유 길이는 cutLength)
+ */
 export function formatCuttingSheet(result) {
   return result.cuts
     .map((c) => {
       const stock = c.kind === STOCK_STRIP ? ` ${STRIP_WIDTH}폭` : '';
-      return `${c.shape}-${c.color}${stock} : ${c.cutLength} X ${c.pieces}컷`;
+      return `${c.shape}-${c.color}${stock} : ${c.finishedLength} X ${c.pieces}컷`;
     })
     .join('\n');
 }

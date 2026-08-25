@@ -496,7 +496,7 @@ footer {
   </div>
 
   <footer>
-    <span>재단 지시서 숫자 = 실제로 톱을 넣는 길이(완성 치수 + 재단손실 5). 완성 세로는 계산 상세 표에서 확인. 100폭 = 낱개 템바.</span>
+    <span>재단 지시서·도면 숫자 = 완성 치수. 재단손실 5mm 는 자르는 쪽에서 감안한다. 원장 점유 길이(완성 +5)는 계산 상세 표의 재단길이 칸에서 확인. 100폭 = 낱개 템바.</span>
   </footer>
 </div>
 
@@ -873,7 +873,8 @@ footer {
       const w = g.cutLength * scale;
       parts.push(cell(x, y, w, BAR, g.kind, uid, hex));
       parts.push(el('rect', { x, y, width: w, height: BAR, class: 'edge' }));
-      if (w > 34) parts.push(txt(x + w / 2, y + BAR / 2 + 4, String(g.cutLength), { fill: inkOn(hex) }));
+      // 칸 크기는 원장 점유 길이(cutLength)로 그리고, 적는 숫자는 완성 치수로 맞춘다
+      if (w > 34) parts.push(txt(x + w / 2, y + BAR / 2 + 4, String(g.finishedLength), { fill: inkOn(hex) }));
       x += w;
       if (i < g.count - 1) {
         parts.push(rect(x, y, KERF * scale, BAR, 'waste')); // 톱날 손실
@@ -910,13 +911,13 @@ footer {
     const vb = [0, 0, Math.max(PAD.l + span, x) + PAD.r, PAD.t + BAR + PAD.b];
     const svg = el('svg', {
       class: 'dwg', viewBox: vb.join(' '), width: vb[2], height: vb[3],
-      role: 'img', 'aria-label': label + ' 재단 도면, ' + g.cutLength + ' ' + g.count + '컷',
+      role: 'img', 'aria-label': label + ' 재단 도면, ' + g.finishedLength + ' ' + g.count + '컷',
     }, parts.join(''));
 
     const caption = [
       '<b>' + label + '</b>',
       '× ' + g.bars + '개',
-      g.cutLength + ' × ' + g.count + '컷',
+      g.finishedLength + ' × ' + g.count + '컷',
       g.tail > 0
         ? '자투리 가로 ' + g.stockWidth + ' X 세로 ' + g.tail + ', ' + g.bars + '개'
         : '자투리 없음',
