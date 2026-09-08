@@ -32,7 +32,7 @@ test('TC-1 견적 — 반달 화이트 1200 × 2000 몰딩 O', () => {
 
   assert.deepEqual(q.lines.map((l) => [l.label, l.count, l.amount]), [
     ['템바보드 타입 / 반달, 색상 / JA3011-화이트', 4, 162000], // 4 × 40,500
-    ['재단 필요해요', 5, 2500],                                // 5 × 500
+    ['재단 필요해요 > 톡톡으로 말씀주세요', 5, 2500],                                // 5 × 500
     ['마감몰딩 1200mm 기준', 1, 4000],
     ['반달템바 (100x2440x9T)', 1, 16000],
   ]);
@@ -52,7 +52,7 @@ test('사각 견적 — 낱개까지 합산', () => {
 test('재단비는 재단 횟수만큼 붙는다', () => {
   const result = calculate([{ shape: 'square', color: '화이트', width: 300, height: 800 }]);
   // 원장 1장 43,000 + 재단 floor(2440/805) × 1 = 3회 × 500
-  assert.ok(formatQuote(result).includes('재단 필요해요 : 3개 × 500원 = 1,500원'));
+  assert.ok(formatQuote(result).includes('재단 필요해요 > 톡톡으로 말씀주세요 : 3개 × 500원 = 1,500원'));
   assert.equal(quote(result).total, 44500);
 });
 
@@ -62,7 +62,7 @@ test('단가를 모르는 항목은 합계에서 빠지고 그렇게 적는다',
   try {
     const result = calculate([{ shape: 'square', color: '화이트', width: 300, height: 800 }]);
     const text = formatQuote(result);
-    assert.ok(text.includes('재단 필요해요 : 3개 × 단가 미정'), text);
+    assert.ok(text.includes('재단 필요해요 > 톡톡으로 말씀주세요 : 3개 × 단가 미정'), text);
     assert.ok(text.includes('※ 단가 미정'), text);
     assert.equal(quote(result).total, 43000, '원장 1장만 합산');
   } finally {
