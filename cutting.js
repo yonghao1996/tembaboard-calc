@@ -649,7 +649,7 @@ export function formatCuttingSheet(result) {
   return result.cuts
     .map((c) => {
       const stock = c.kind === STOCK_STRIP ? ` ${STRIP_WIDTH}폭` : '';
-      return `${c.shape}-${c.color}${stock} : ${c.finishedLength} X ${c.pieces}조각`;
+      return `${c.shape}-${c.color}${stock} : ${c.finishedLength} - ${c.pieces}조각`;
     })
     .join('\n');
 }
