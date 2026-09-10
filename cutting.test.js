@@ -56,7 +56,7 @@ test('TC-1 반달 / 화이트 / 1200 × 2000 / 몰딩 O / 끝단정리 X', () =>
   }]);
   assert.equal(
     formatCuttingSheet(result),
-    ['반달-화이트 : 1985 X 4컷', '반달-화이트 100폭 : 1985 X 1컷'].join('\n'),
+    ['반달-화이트 : 1985 X 4조각', '반달-화이트 100폭 : 1985 X 1조각'].join('\n'),
   );
   assert.equal(
     formatOrderSummary(result),
@@ -128,10 +128,10 @@ test('TC-5 동일 모양·색상·재단길이 2건은 한 줄로 합산', () =>
     { shape: 'half', color: '화이트', width: 600,  height: 2000, useMolding: true },
   ]);
 
-  // 원장 4 + 2 = 6컷, 낱개 1 + 1 = 2컷
+  // 원장 4 + 2 = 6조각, 낱개 1 + 1 = 2조각
   assert.equal(
     formatCuttingSheet(result),
-    ['반달-화이트 : 1985 X 6컷', '반달-화이트 100폭 : 1985 X 2컷'].join('\n'),
+    ['반달-화이트 : 1985 X 6조각', '반달-화이트 100폭 : 1985 X 2조각'].join('\n'),
   );
   assert.deepEqual(result.boards, [{ shape: '반달', shapeKey: 'half', color: '화이트', sheets: 6 }]);
 });
@@ -146,9 +146,9 @@ test('TC-5 보강: 사양이 다르면 줄을 나눈다', () => {
   assert.equal(
     formatCuttingSheet(result),
     [
-      '사각-화이트 : 1200 X 3컷',
-      '반달-진한티크 : 1985 X 4컷',
-      '반달-진한티크 100폭 : 1985 X 1컷',
+      '사각-화이트 : 1200 X 3조각',
+      '반달-진한티크 : 1985 X 4조각',
+      '반달-진한티크 100폭 : 1985 X 1조각',
     ].join('\n'),
   );
 });
@@ -228,7 +228,7 @@ test('세로 3000 사각 1200 — 조각별로 자재를 따로 센다', () => {
   }]);
   assert.equal(
     formatCuttingSheet(result),
-    ['사각-화이트 : 550 X 4컷', '사각-화이트 : 2435 X 4컷'].join('\n'),
+    ['사각-화이트 : 550 X 4조각', '사각-화이트 : 2435 X 4조각'].join('\n'),
   );
   assert.ok(formatOrderSummary(result).includes('템바보드 타입 / 사각, 색상 / JA3011-화이트 : 5개'));
 });
@@ -369,7 +369,7 @@ test('관리자 주문요약 — 같은 자재에 길이가 여럿이면 / 로 �
     { shape: 'square', color: '연한오크', width: 900, height: 855 },
   ]);
 
-  // 2415 → 자재당 1개, 3컷 → 3개. 855 → 자재당 2개, 3컷 → 2개. 합 5개
+  // 2415 → 자재당 1개, 3조각 → 3개. 855 → 자재당 2개, 3조각 → 2개. 합 5개
   assert.equal(
     formatAdminOrder(result),
     '붙이는 사각템바 12T_30cm\t300*2440*12T\tJA8401-연한오크\t5\t'
@@ -469,7 +469,7 @@ test('합산된 사양은 자투리도 합산 기준으로 다시 계산한다',
     { shape: 'half', color: '화이트', width: 600, height: 800 },
   ]);
 
-  // 원장 2 + 2 = 4컷 → 자재당 2개 → 원장 2개. 낱개 1 + 1 = 2컷 → 낱개 1개
+  // 원장 2 + 2 = 4조각 → 자재당 2개 → 원장 2개. 낱개 1 + 1 = 2조각 → 낱개 1개
   assert.equal(
     formatLeftovers(result),
     [
@@ -497,7 +497,7 @@ test('자투리가 하나도 없으면 그렇게 적는다', () => {
   assert.equal(formatLeftovers(result), '');
   assert.equal(
     formatCuttingSheetWithLeftovers(result),
-    ['반달-화이트 : 795 X 3컷', '', '--- 자투리 ---', '자투리 없음'].join('\n'),
+    ['반달-화이트 : 795 X 3조각', '', '--- 자투리 ---', '자투리 없음'].join('\n'),
   );
 });
 
@@ -533,11 +533,11 @@ test('calculateItem 은 검증 실패 시 CuttingError 를 던진다', () => {
 // --- 끝단정리가 다른 동일 사양 ----------------------------------------------
 test('끝단정리 여부가 다르면 자재당 개수를 따로 계산하고 재단 줄은 합친다', () => {
   const result = calculate([
-    { shape: 'half', color: '화이트', width: 590, height: 795, trimEnds: false }, // 2컷 / 자재당 3 → 1개
-    { shape: 'half', color: '화이트', width: 590, height: 795, trimEnds: true },  // 2컷 / 자재당 2 → 1개
+    { shape: 'half', color: '화이트', width: 590, height: 795, trimEnds: false }, // 2조각 / 자재당 3 → 1개
+    { shape: 'half', color: '화이트', width: 590, height: 795, trimEnds: true },  // 2조각 / 자재당 2 → 1개
   ]);
 
-  assert.equal(formatCuttingSheet(result), '반달-화이트 : 795 X 4컷');
+  assert.equal(formatCuttingSheet(result), '반달-화이트 : 795 X 4조각');
   assert.deepEqual(result.boards, [{ shape: '반달', shapeKey: 'half', color: '화이트', sheets: 2 }]);
 });
 
@@ -576,7 +576,7 @@ test('벽면 배치도 — 세로가 나뉘면 행도 나뉜다', () => {
 test('재단 도면 — 자재 1개에 들어가는 조각과 남는 길이', () => {
   const result = calculate([{ shape: 'square', color: '화이트', width: 600, height: 800 }]);
 
-  // 재단 805, 자재당 2개, 조각 2개 → 자재 1개에 2컷
+  // 재단 805, 자재당 2개, 조각 2개 → 자재 1개에 2조각
   assert.deepEqual(result.barGroups, [{
     shape: '사각', shapeKey: 'square', color: '화이트', kind: 'board', stockWidth: 300,
     sheetLength: 2440, usableLength: 2440, trimEnds: false,

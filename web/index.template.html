@@ -960,20 +960,20 @@ footer {
     parts.push(txt(PAD.l, PAD.t - 14, '0', { anchor: 'start', cls: 'dim' }));
     parts.push(txt(PAD.l + span, PAD.t - 14, String(g.sheetLength), { anchor: 'end', cls: 'dim' }));
     parts.push(txt(PAD.l + (usedEnd - PAD.l) / 2, y + BAR + 15,
-      g.count + '컷' + (g.trimEnds ? ' · 끝단정리 20 별도' : ''), { cls: 'dim' }));
+      g.count + '조각' + (g.trimEnds ? ' · 끝단정리 20 별도' : ''), { cls: 'dim' }));
 
     const stock = g.kind === 'strip' ? '낱개 100폭' : '원장 ' + g.stockWidth + '폭';
     const label = g.shape + '-' + g.color + ' ' + stock;
     const vb = [0, 0, Math.max(PAD.l + span, x) + PAD.r, PAD.t + BAR + PAD.b];
     const svg = el('svg', {
       class: 'dwg', viewBox: vb.join(' '), width: vb[2], height: vb[3],
-      role: 'img', 'aria-label': label + ' 재단 도면, ' + g.finishedLength + ' ' + g.count + '컷',
+      role: 'img', 'aria-label': label + ' 재단 도면, ' + g.finishedLength + ' ' + g.count + '조각',
     }, parts.join(''));
 
     const caption = [
       '<b>' + label + '</b>',
       '× ' + g.bars + '개',
-      g.finishedLength + ' × ' + g.count + '컷',
+      g.finishedLength + ' × ' + g.count + '조각',
       g.tail > 0
         ? '자투리 가로 ' + g.stockWidth + ' X 세로 ' + g.tail + ', ' + g.bars + '개'
         : '자투리 없음',
