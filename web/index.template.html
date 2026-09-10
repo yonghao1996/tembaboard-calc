@@ -285,6 +285,8 @@ pre.out {
   color: var(--ink);
 }
 pre.out.empty { color: var(--muted); border-left-color: var(--line-strong); }
+/* 탭으로 나눈 표. 칸이 너무 벌어지지 않게 탭 폭을 줄인다 */
+pre.out.tsv { tab-size: 4; -moz-tab-size: 4; font-size: 12px; }
 
 /* detail table */
 .tbl-scroll { overflow-x: auto; }
@@ -455,6 +457,10 @@ footer {
           <div class="row-actions">
             <button class="btn solid" data-copy="full">지시서 + 자투리 한 번에 복사</button>
           </div>
+          <div class="out-block">
+            <div class="out-label"><span>관리자 주문요약 <span style="text-transform:none;font-weight:400">(표에 붙여넣기)</span></span><button class="btn" data-copy="admin">복사</button></div>
+            <pre class="out tsv" id="out-admin"></pre>
+          </div>
         </div>
       </section>
 
@@ -531,7 +537,7 @@ footer {
   }
 
   let items = [blank()];
-  let lastText = { sum: '', cut: '', left: '', full: '', quote: '' };
+  let lastText = { sum: '', cut: '', left: '', full: '', quote: '', admin: '' };
 
   function renderItems() {
     const box = $('#items');
@@ -648,14 +654,14 @@ footer {
 
   function renderOutput() {
     const valid = items.filter((i) => validateItem(i).length === 0);
-    const sumEl = $('#out-sum'), cutEl = $('#out-cut'), leftEl = $('#out-left');
+    const sumEl = $('#out-sum'), cutEl = $('#out-cut'), leftEl = $('#out-left'), adminEl = $('#out-admin');
 
     if (valid.length === 0) {
       const msg = items.every(isEmptyItem)
         ? '가로·세로를 입력하면 결과가 나옵니다.'
         : '입력값을 확인해 주세요.';
-      lastText = { sum: '', cut: '', left: '', full: '', quote: '' };
-      [sumEl, cutEl, leftEl].forEach((el) => { el.textContent = msg; el.classList.add('empty'); });
+      lastText = { sum: '', cut: '', left: '', full: '', quote: '', admin: '' };
+      [sumEl, cutEl, leftEl, adminEl].forEach((el) => { el.textContent = msg; el.classList.add('empty'); });
       $('#detail').innerHTML = '';
       $('#detail-note').textContent = '';
       $('#detail-note').className = 'note';
@@ -679,11 +685,13 @@ footer {
       left: formatLeftovers(result),
       full: formatCuttingSheetWithLeftovers(result),
       quote: formatQuote(result),
+      admin: formatAdminOrder(result),
     };
     sumEl.textContent = lastText.sum;
     cutEl.textContent = lastText.cut;
     leftEl.textContent = lastText.left || NO_LEFTOVER_TEXT;
-    [sumEl, cutEl, leftEl].forEach((el) => el.classList.remove('empty'));
+    adminEl.textContent = lastText.admin;
+    [sumEl, cutEl, leftEl, adminEl].forEach((el) => el.classList.remove('empty'));
 
     const rows = result.items.map((it) => [
       it.shape.label + ' / ' + storeColorLabel(it.color.name, it.shape.key),

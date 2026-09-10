@@ -293,6 +293,8 @@ pre.out {
   color: var(--ink);
 }
 pre.out.empty { color: var(--muted); border-left-color: var(--line-strong); }
+/* 탭으로 나눈 표. 칸이 너무 벌어지지 않게 탭 폭을 줄인다 */
+pre.out.tsv { tab-size: 4; -moz-tab-size: 4; font-size: 12px; }
 
 /* detail table */
 .tbl-scroll { overflow-x: auto; }
@@ -463,6 +465,10 @@ footer {
           <div class="row-actions">
             <button class="btn solid" data-copy="full">지시서 + 자투리 한 번에 복사</button>
           </div>
+          <div class="out-block">
+            <div class="out-label"><span>관리자 주문요약 <span style="text-transform:none;font-weight:400">(표에 붙여넣기)</span></span><button class="btn" data-copy="admin">복사</button></div>
+            <pre class="out tsv" id="out-admin"></pre>
+          </div>
         </div>
       </section>
 
@@ -626,6 +632,23 @@ const STORE_OPTIONS = {
     square: '사각템바 (100x2440x12T)',
   },
 };
+
+/**
+ * 관리자페이지 주문요약의 상품명·자재 규격.
+ * 상품은 자재 폭으로 갈린다. 원장 _30cm / 낱개 _10cm.
+ *
+ * ⚠️ 확인 전 값이 둘 있다.
+ *   - 반달 상품명 '붙이는 반달템바 9T' (샘플에 사각만 있었다)
+ *   - 반달 원장의 규격 폭 300 (실측 유효폭은 295. 단가표에서 '300 반달템바' 라 부르는 걸 따랐다)
+ * 다르면 이 표만 고친다.
+ */
+const ADMIN_PRODUCTS = {
+  square: { name: '붙이는 사각템바 12T', thickness: '12T', boardWidth: 300 },
+  half:   { name: '붙이는 반달템바 9T',  thickness: '9T',  boardWidth: 300 },
+};
+
+/** 상품명 뒤에 붙는 폭 구분 */
+const ADMIN_SIZE_SUFFIX = { board: '_30cm', strip: '_10cm' };
 
 /**
  * 네이버 톡톡 상담 주소. 예: 'https://talk.naver.com/ct/xxxxxx'
@@ -987,7 +1010,7 @@ function calculate(inputs) {
   for (const b of buckets.values()) {
     const key = [b.shape, b.color, b.cutLength, b.kind].join('|');
     const row = cutMap.get(key) ?? {
-      shape: b.shape, color: b.color, kind: b.kind, stockWidth: b.stockWidth,
+      shape: b.shape, shapeKey: b.shapeKey, color: b.color, kind: b.kind, stockWidth: b.stockWidth,
       cutLength: b.cutLength, finishedLength: b.finishedLength, pieces: 0,
     };
     row.pieces += b.pieces;
@@ -1000,7 +1023,8 @@ function calculate(inputs) {
   for (const b of buckets.values()) {
     const key = [b.shape, b.color, b.kind].join('|');
     const row = stockMap.get(key) ?? {
-      shape: b.shape, shapeKey: b.shapeKey, color: b.color, kind: b.kind, bars: 0,
+      shape: b.shape, shapeKey: b.shapeKey, color: b.color, kind: b.kind,
+      stockWidth: b.stockWidth, sheetLength: b.sheetLength, bars: 0,
     };
     row.bars += b.bars;
     stockMap.set(key, row);
@@ -1061,6 +1085,8 @@ function calculate(inputs) {
     items,
     boards,
     stripOrders,
+    /** 모양 + 색상 + 자재 단위. 관리자 주문요약이 이 단위로 한 줄씩 낸다 */
+    stocks,
     cuts,
     moldings,
     leftovers,
@@ -1203,6 +1229,38 @@ function formatOrderSummary(result) {
   }
 
   return lines.join('\n');
+}
+
+/**
+ * 관리자페이지 주문요약. 한 줄이 자재 한 종류다.
+ *
+ *   상품명 \t 자재규격 \t 색상 \t 수량(자재 개수) \t 재단내역
+ *   붙이는 사각템바 12T_30cm \t 300*2440*12T \t JA8401-연한오크 \t 3 \t 300*1170*12T 6조각
+ *
+ * 탭으로 나눠서 표에 그대로 붙여넣을 수 있게 한다.
+ * 재단내역의 세로 숫자는 재단 지시서와 같게 **완성 치수**다.
+ * 폭은 자재 규격 그대로다. 폭 재단을 하지 않으므로 좁혀 적는 줄은 나오지 않는다.
+ */
+function formatAdminOrder(result) {
+  return result.stocks
+    .map((s) => {
+      const product = ADMIN_PRODUCTS[s.shapeKey];
+      const width = s.kind === STOCK_STRIP ? STRIP_WIDTH : product.boardWidth;
+      const spec = (length) => `${width}*${length}*${product.thickness}`;
+      const detail = result.cuts
+        .filter((c) => c.shapeKey === s.shapeKey && c.color === s.color && c.kind === s.kind)
+        .map((c) => `${spec(c.finishedLength)} ${c.pieces}조각`)
+        .join(' / ');
+
+      return [
+        product.name + ADMIN_SIZE_SUFFIX[s.kind],
+        spec(s.sheetLength),
+        storeColorLabel(s.color, s.shapeKey),
+        s.bars,
+        detail,
+      ].join('\t');
+    })
+    .join('\n');
 }
 
 /**
@@ -1355,7 +1413,7 @@ function formatQuote(result) {
   }
 
   let items = [blank()];
-  let lastText = { sum: '', cut: '', left: '', full: '', quote: '' };
+  let lastText = { sum: '', cut: '', left: '', full: '', quote: '', admin: '' };
 
   function renderItems() {
     const box = $('#items');
@@ -1472,14 +1530,14 @@ function formatQuote(result) {
 
   function renderOutput() {
     const valid = items.filter((i) => validateItem(i).length === 0);
-    const sumEl = $('#out-sum'), cutEl = $('#out-cut'), leftEl = $('#out-left');
+    const sumEl = $('#out-sum'), cutEl = $('#out-cut'), leftEl = $('#out-left'), adminEl = $('#out-admin');
 
     if (valid.length === 0) {
       const msg = items.every(isEmptyItem)
         ? '가로·세로를 입력하면 결과가 나옵니다.'
         : '입력값을 확인해 주세요.';
-      lastText = { sum: '', cut: '', left: '', full: '', quote: '' };
-      [sumEl, cutEl, leftEl].forEach((el) => { el.textContent = msg; el.classList.add('empty'); });
+      lastText = { sum: '', cut: '', left: '', full: '', quote: '', admin: '' };
+      [sumEl, cutEl, leftEl, adminEl].forEach((el) => { el.textContent = msg; el.classList.add('empty'); });
       $('#detail').innerHTML = '';
       $('#detail-note').textContent = '';
       $('#detail-note').className = 'note';
@@ -1503,11 +1561,13 @@ function formatQuote(result) {
       left: formatLeftovers(result),
       full: formatCuttingSheetWithLeftovers(result),
       quote: formatQuote(result),
+      admin: formatAdminOrder(result),
     };
     sumEl.textContent = lastText.sum;
     cutEl.textContent = lastText.cut;
     leftEl.textContent = lastText.left || NO_LEFTOVER_TEXT;
-    [sumEl, cutEl, leftEl].forEach((el) => el.classList.remove('empty'));
+    adminEl.textContent = lastText.admin;
+    [sumEl, cutEl, leftEl, adminEl].forEach((el) => el.classList.remove('empty'));
 
     const rows = result.items.map((it) => [
       it.shape.label + ' / ' + storeColorLabel(it.color.name, it.shape.key),

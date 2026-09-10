@@ -13,6 +13,7 @@ import {
   cutCount,
   cutLength,
   finishedLength,
+  formatAdminOrder,
   formatCuttingSheet,
   formatCuttingSheetWithLeftovers,
   formatLeftovers,
@@ -345,6 +346,41 @@ test('몰딩 주문 내역은 색상·규격별로 합산된다', () => {
       '반달템바 (100x2440x9T) : 1개',
     ].join('\n'),
   );
+});
+
+// --- 관리자페이지 주문요약 --------------------------------------------------
+test('관리자 주문요약 — 자재 한 종류가 한 줄, 탭으로 나눈다', () => {
+  const result = calculate([{ shape: 'square', color: '연한오크', width: 1970, height: 1170 }]);
+
+  assert.equal(
+    formatAdminOrder(result),
+    [
+      '붙이는 사각템바 12T_30cm\t300*2440*12T\tJA8401-연한오크\t3\t300*1170*12T 6조각',
+      '붙이는 사각템바 12T_10cm\t100*2440*12T\tJA8401-연한오크\t1\t100*1170*12T 2조각',
+    ].join('\n'),
+  );
+});
+
+test('관리자 주문요약 — 같은 자재에 길이가 여럿이면 / 로 잇고 수량은 합친다', () => {
+  const result = calculate([
+    { shape: 'square', color: '연한오크', width: 900, height: 2415 },
+    { shape: 'square', color: '연한오크', width: 900, height: 855 },
+  ]);
+
+  // 2415 → 자재당 1개, 3컷 → 3개. 855 → 자재당 2개, 3컷 → 2개. 합 5개
+  assert.equal(
+    formatAdminOrder(result),
+    '붙이는 사각템바 12T_30cm\t300*2440*12T\tJA8401-연한오크\t5\t'
+    + '300*855*12T 3조각 / 300*2415*12T 3조각',
+  );
+});
+
+test('관리자 주문요약 — 폭 재단을 하지 않으므로 좁힌 폭이 적히지 않는다', () => {
+  const result = calculate([{ shape: 'square', color: '연한오크', width: 1970, height: 1170 }]);
+  const strip = formatAdminOrder(result).split('\n').find((l) => l.includes('_10cm'));
+
+  assert.ok(strip.endsWith('100*1170*12T 2조각'), strip);
+  assert.ok(!/\b70\*/.test(strip), '70 폭으로 좁힌 줄이 없다');
 });
 
 // --- 자투리 -----------------------------------------------------------------

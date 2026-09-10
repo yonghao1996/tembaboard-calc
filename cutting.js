@@ -4,7 +4,7 @@
  * 규칙 출처: CLAUDE.md 2장(계산 로직), 3장(출력 형식).
  */
 import { COLOR_ORDER, findColor, isColorAvailable, storeColorLabel } from './colors.js';
-import { STORE_OPTIONS } from './store-options.js';
+import { STORE_OPTIONS, ADMIN_PRODUCTS, ADMIN_SIZE_SUFFIX } from './store-options.js';
 
 /** 모양별 원장 규격. 유효폭 = 실측폭(옆판 겹침 손실 없음). */
 export const SHAPES = {
@@ -351,7 +351,7 @@ export function calculate(inputs) {
   for (const b of buckets.values()) {
     const key = [b.shape, b.color, b.cutLength, b.kind].join('|');
     const row = cutMap.get(key) ?? {
-      shape: b.shape, color: b.color, kind: b.kind, stockWidth: b.stockWidth,
+      shape: b.shape, shapeKey: b.shapeKey, color: b.color, kind: b.kind, stockWidth: b.stockWidth,
       cutLength: b.cutLength, finishedLength: b.finishedLength, pieces: 0,
     };
     row.pieces += b.pieces;
@@ -364,7 +364,8 @@ export function calculate(inputs) {
   for (const b of buckets.values()) {
     const key = [b.shape, b.color, b.kind].join('|');
     const row = stockMap.get(key) ?? {
-      shape: b.shape, shapeKey: b.shapeKey, color: b.color, kind: b.kind, bars: 0,
+      shape: b.shape, shapeKey: b.shapeKey, color: b.color, kind: b.kind,
+      stockWidth: b.stockWidth, sheetLength: b.sheetLength, bars: 0,
     };
     row.bars += b.bars;
     stockMap.set(key, row);
@@ -425,6 +426,8 @@ export function calculate(inputs) {
     items,
     boards,
     stripOrders,
+    /** 모양 + 색상 + 자재 단위. 관리자 주문요약이 이 단위로 한 줄씩 낸다 */
+    stocks,
     cuts,
     moldings,
     leftovers,
@@ -567,6 +570,38 @@ export function formatOrderSummary(result) {
   }
 
   return lines.join('\n');
+}
+
+/**
+ * 관리자페이지 주문요약. 한 줄이 자재 한 종류다.
+ *
+ *   상품명 \t 자재규격 \t 색상 \t 수량(자재 개수) \t 재단내역
+ *   붙이는 사각템바 12T_30cm \t 300*2440*12T \t JA8401-연한오크 \t 3 \t 300*1170*12T 6조각
+ *
+ * 탭으로 나눠서 표에 그대로 붙여넣을 수 있게 한다.
+ * 재단내역의 세로 숫자는 재단 지시서와 같게 **완성 치수**다.
+ * 폭은 자재 규격 그대로다. 폭 재단을 하지 않으므로 좁혀 적는 줄은 나오지 않는다.
+ */
+export function formatAdminOrder(result) {
+  return result.stocks
+    .map((s) => {
+      const product = ADMIN_PRODUCTS[s.shapeKey];
+      const width = s.kind === STOCK_STRIP ? STRIP_WIDTH : product.boardWidth;
+      const spec = (length) => `${width}*${length}*${product.thickness}`;
+      const detail = result.cuts
+        .filter((c) => c.shapeKey === s.shapeKey && c.color === s.color && c.kind === s.kind)
+        .map((c) => `${spec(c.finishedLength)} ${c.pieces}조각`)
+        .join(' / ');
+
+      return [
+        product.name + ADMIN_SIZE_SUFFIX[s.kind],
+        spec(s.sheetLength),
+        storeColorLabel(s.color, s.shapeKey),
+        s.bars,
+        detail,
+      ].join('\t');
+    })
+    .join('\n');
 }
 
 /**

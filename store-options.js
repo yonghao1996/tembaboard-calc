@@ -26,6 +26,23 @@ export const STORE_OPTIONS = {
 };
 
 /**
+ * 관리자페이지 주문요약의 상품명·자재 규격.
+ * 상품은 자재 폭으로 갈린다. 원장 _30cm / 낱개 _10cm.
+ *
+ * ⚠️ 확인 전 값이 둘 있다.
+ *   - 반달 상품명 '붙이는 반달템바 9T' (샘플에 사각만 있었다)
+ *   - 반달 원장의 규격 폭 300 (실측 유효폭은 295. 단가표에서 '300 반달템바' 라 부르는 걸 따랐다)
+ * 다르면 이 표만 고친다.
+ */
+export const ADMIN_PRODUCTS = {
+  square: { name: '붙이는 사각템바 12T', thickness: '12T', boardWidth: 300 },
+  half:   { name: '붙이는 반달템바 9T',  thickness: '9T',  boardWidth: 300 },
+};
+
+/** 상품명 뒤에 붙는 폭 구분 */
+export const ADMIN_SIZE_SUFFIX = { board: '_30cm', strip: '_10cm' };
+
+/**
  * 네이버 톡톡 상담 주소. 예: 'https://talk.naver.com/ct/xxxxxx'
  * 톡톡은 링크로 메시지를 미리 채우는 규격이 없다. 그래서 '톡톡으로 보내기' 버튼은
  * 지시서를 복사한 뒤 톡톡 창을 열어 주고, 붙여넣기는 사람이 한다.
