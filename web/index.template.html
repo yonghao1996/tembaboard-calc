@@ -299,7 +299,10 @@ td.strong { color: var(--accent-ink); font-weight: 600; }
 tr.total td { border-top: 1px solid var(--line-strong); border-bottom: 0; font-weight: 600; padding-top: 10px; }
 tr.total td:last-child { color: var(--accent-ink); font-size: 15px; }
 td.unknown { color: var(--muted); }
+td .over { color: var(--bad); font-weight: 600; }
 .note { font-size: 12px; color: var(--muted); }
+.note.warn { color: var(--bad); }
+.note b { font-weight: 600; }
 
 /* --- 도면 --- */
 h3.group {
@@ -419,6 +422,7 @@ footer {
         </div>
         <div class="panel-body">
           <div class="tbl-scroll"><table id="detail"></table></div>
+          <div class="note" id="detail-note"></div>
         </div>
       </section>
     </div>
@@ -653,6 +657,8 @@ footer {
       lastText = { sum: '', cut: '', left: '', full: '', quote: '' };
       [sumEl, cutEl, leftEl].forEach((el) => { el.textContent = msg; el.classList.add('empty'); });
       $('#detail').innerHTML = '';
+      $('#detail-note').textContent = '';
+      $('#detail-note').className = 'note';
       $('#quote').innerHTML = '';
       $('#quote-note').textContent = '';
       $('#walls').innerHTML = '';
@@ -682,7 +688,8 @@ footer {
     const rows = result.items.map((it) => [
       it.shape.label + ' / ' + storeColorLabel(it.color.name, it.shape.key),
       it.width + ' × ' + it.height,
-      it.widthPlan.covered + (it.widthPlan.overhang > 0 ? ' (+' + it.widthPlan.overhang + ')' : ''),
+      it.widthPlan.covered +
+        (it.widthPlan.overhang > 0 ? ' <span class="over">+' + it.widthPlan.overhang + '</span>' : ''),
       it.widthPlan.boards + ' + ' + it.widthPlan.strips,
       it.segments.map((s) => s.finishedLength).join(' + '),
       it.segments.map((s) => s.cutLength).join(' + '),
@@ -696,9 +703,32 @@ footer {
       '<tbody>' + rows.map((r) => '<tr>' + r.map((c, i) =>
         '<td' + (i === r.length - 1 ? ' class="strong"' : '') + '>' + c + '</td>').join('') + '</tr>').join('') + '</tbody>';
 
+    renderDetailNote(result);
     renderQuote(result);
     renderDrawings(result);
     updateActionButtons();
+  }
+
+  /**
+   * 가로는 규격 그대로 나가므로 시공 폭이 요청 가로보다 넓을 수 있다.
+   * 그 폭은 우리가 자르지 않으니, 어느 항목이 얼마나 넘치는지 고객이 알아야 한다.
+   */
+  function renderDetailNote(result) {
+    const box = $('#detail-note');
+    const over = result.items
+      .map((it, i) => ({ no: String(i + 1).padStart(2, '0'), mm: it.widthPlan.overhang }))
+      .filter((o) => o.mm > 0);
+
+    if (over.length === 0) {
+      box.className = 'note';
+      box.textContent = '가로(폭)는 재단해 드리지 않습니다. 세로만 재단합니다. '
+        + '이번 주문은 규격 합계가 요청 가로와 딱 맞습니다.';
+      return;
+    }
+    box.className = 'note warn';
+    box.innerHTML = '⚠ 가로(폭)는 재단해 드리지 않습니다. 세로만 재단합니다. '
+      + over.map((o) => '<b>항목 ' + o.no + ' 은 ' + o.mm + 'mm</b>').join(', ')
+      + ' 넘치게 나가니, 마지막 한 장은 <b>벽 폭에 맞춰 직접 잘라 쓰셔야 합니다.</b>';
   }
 
   // --- 도면 ---------------------------------------------------------------
