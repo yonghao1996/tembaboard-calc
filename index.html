@@ -414,6 +414,7 @@ footer {
       <span>끝단정리 <b>-20</b></span>
       <span>상단몰딩 <b>-15</b></span>
       <span>가로 재단 <b>불가</b></span>
+      <span>몰딩 재단 <b>불가</b></span>
     </div>
   </header>
 
@@ -524,7 +525,8 @@ footer {
 
   <footer>
     <span>재단 지시서·도면 숫자 = 완성 치수. 재단손실 5mm 는 자르는 쪽에서 감안한다. 원장 점유 길이(완성 +5)는 계산 상세 표의 재단길이 칸에서 확인. 100폭 = 낱개 템바.</span>
-    <span>세로만 재단합니다. 가로(폭)는 자르지 못해 규격 그대로 나가므로, 시공 가로가 요청 가로보다 넓을 수 있습니다. 넘치는 폭은 현장에서 처리하세요.</span>
+    <span>템바보드는 세로만 재단합니다. 가로(폭)는 자르지 못해 규격 그대로 나가므로, 시공 가로가 요청 가로보다 넓을 수 있습니다.</span>
+    <span>마감몰딩은 재단하지 않습니다. 15×1200 / 15×2440 규격 그대로만 주문됩니다. 넘치는 가로·몰딩 길이는 꼬리톱 등으로 직접 잘라 쓰셔야 합니다.</span>
   </footer>
 </div>
 
@@ -835,28 +837,7 @@ function moldingPlan(width) {
   const items = MOLDING_LENGTHS
     .filter((len) => best.pieces[len] > 0)
     .map((len) => ({ length: len, count: best.pieces[len] }));
-
-  // 몰딩은 길이 재단이 된다. 긴 자재부터 채우고 마지막 하나만 가로에 맞춰 자른다.
-  // bars = 자재 하나하나가 실제로 얼마나 쓰이는지.
-  let left = width;
-  const bars = [];
-  for (const it of items) {
-    for (let i = 0; i < it.count; i += 1) {
-      const used = Math.min(it.length, Math.max(left, 0));
-      bars.push({ stock: it.length, used });
-      left -= used;
-    }
-  }
-
-  return {
-    items,
-    bars,
-    /** 몰딩 재단 횟수. 딱 떨어지면 0 */
-    cuts: bars.filter((b) => b.used < b.stock).length,
-    count: best.count,
-    total: best.total,
-    leftover: best.leftover,
-  };
+  return { items, count: best.count, total: best.total, leftover: best.leftover };
 }
 
 // --- 자투리 -----------------------------------------------------------------
@@ -981,11 +962,8 @@ function calculateItem(input) {
     piecesPerSheet: segments[0].piecesPerSheet,
     sheets: barsOf(STOCK_BOARD),
     strips: barsOf(STOCK_STRIP),
-    /** 템바보드 재단 횟수. 몰딩은 moldingCutCount 에 따로 센다 */
     cutCount: segments.reduce((n, seg) => n + cutCount(usableLength, seg.cutLength, seg.pieces), 0),
     molding: useMolding ? moldingPlan(width) : null,
-    /** 몰딩 길이 재단 횟수. 가로에 딱 맞으면 0 */
-    moldingCutCount: useMolding ? moldingPlan(width).cuts : 0,
   };
 }
 
@@ -1120,23 +1098,6 @@ function calculate(inputs) {
   }
   const moldingLeftovers = [...moldingLeftoverMap.values()].sort(bySpec);
 
-  // 몰딩 재단 내역. 자재 규격(stock)별로 실제로 잘라 쓰는 길이(used)를 센다.
-  const moldingCutMap = new Map();
-  for (const item of items) {
-    if (!item.molding) continue;
-    for (const bar of item.molding.bars) {
-      const key = [item.color.name, bar.stock, bar.used].join('|');
-      const row = moldingCutMap.get(key) ?? {
-        color: item.color.name, shapeKey: item.shape.key,
-        stock: bar.stock, used: bar.used, count: 0,
-      };
-      row.count += 1;
-      moldingCutMap.set(key, row);
-    }
-  }
-  const moldingCuts = [...moldingCutMap.values()]
-    .sort((a, b) => colorRank(a.color) - colorRank(b.color) || b.stock - a.stock || a.used - b.used);
-
   return {
     items,
     boards,
@@ -1147,9 +1108,7 @@ function calculate(inputs) {
     moldings,
     leftovers,
     moldingLeftovers,
-    moldingCuts,
-    /** 스토어 '재단 필요해요' 수량. 템바보드 + 몰딩 길이 재단을 합친다 */
-    cutCount: items.reduce((n, it) => n + it.cutCount + it.moldingCutCount, 0),
+    cutCount: items.reduce((n, it) => n + it.cutCount, 0),
     joints: items.reduce((n, it) => n + it.joints, 0),
     barGroups: barGroupsOf([...buckets.values()].sort(bySpec)),
     walls: items.map(wallLayout),
@@ -1327,14 +1286,8 @@ function formatAdminOrder(result) {
     });
   }
 
-  // 몰딩은 길이 재단이 되므로 재단내역 칸도 채운다. 가로에 딱 맞는 자재는 자른 길이가
-  // 곧 규격 길이라 그대로 적힌다.
+  // 몰딩은 우리가 자르지 않으므로 재단내역 칸 없이 4칸이다.
   for (const m of result.moldings) {
-    const detail = result.moldingCuts
-      .filter((c) => c.color === m.color && c.stock === m.length)
-      .map((c) => `${ADMIN_MOLDING.width}*${c.used}*${ADMIN_MOLDING.thickness} ${c.count}조각`)
-      .join(' / ');
-
     rows.push({
       color: m.color,
       kindRank: 2,
@@ -1345,7 +1298,6 @@ function formatAdminOrder(result) {
         `${ADMIN_MOLDING.width}*${m.length}*${ADMIN_MOLDING.thickness}`,
         storeColorLabel(m.color, m.shapeKey),
         m.count,
-        detail,
       ],
     });
   }
@@ -1367,25 +1319,12 @@ function formatAdminOrder(result) {
  * (읽는 사람이 주문한 치수를 그대로 보게 하려는 것. 원장 점유 길이는 cutLength)
  */
 function formatCuttingSheet(result) {
-  const lines = result.cuts.map((c) => {
-    const stock = c.kind === STOCK_STRIP ? ` ${STRIP_WIDTH}폭` : '';
-    return `${c.shape}-${c.color}${stock} : ${c.finishedLength} X ${c.pieces}컷`;
-  });
-
-  // 몰딩은 길이 재단이 되니 자를 길이를 따로 적는다.
-  // 규격 그대로 나가는 자재는 자를 게 없어서 빠진다.
-  const molding = new Map();
-  for (const c of result.moldingCuts) {
-    if (c.used >= c.stock) continue;
-    const key = `${c.color}|${c.used}`;
-    molding.set(key, (molding.get(key) ?? 0) + c.count);
-  }
-  for (const [key, count] of molding) {
-    const [color, used] = key.split('|');
-    lines.push(`마감몰딩-${color} : ${used} X ${count}컷`);
-  }
-
-  return lines.join('\n');
+  return result.cuts
+    .map((c) => {
+      const stock = c.kind === STOCK_STRIP ? ` ${STRIP_WIDTH}폭` : '';
+      return `${c.shape}-${c.color}${stock} : ${c.finishedLength} X ${c.pieces}컷`;
+    })
+    .join('\n');
 }
 
 const NO_LEFTOVER_TEXT = '자투리 없음';
@@ -1627,18 +1566,18 @@ function formatQuote(result) {
       fOpt.appendChild(toggles);
 
       // 마감몰딩은 가로에 맞춰 2440 / 1200 을 조합해 덮는다.
-      // 고르는 자리에서 어느 규격이 몇 개 붙는지 바로 보여 준다.
+      // 몰딩도 재단이 안 되므로(15*1200 / 15*2440 규격 주문만 가능) 남는 길이는
+      // 고객이 직접 자른다. 고르는 자리에서 어느 규격이 몇 개인지, 얼마가 남는지 적는다.
       if (item.useMolding && Number.isFinite(item.width) && item.width > 0) {
         const plan = moldingPlan(item.width);
         const hint = document.createElement('div');
         hint.className = 'opt-hint';
-        // 몰딩은 길이 재단이 되니 마지막 하나를 얼마로 자르는지까지 적는다
-        const trimmed = plan.bars.filter((b) => b.used < b.stock);
         hint.innerHTML = '몰딩 <b>'
           + plan.items.map((m) => m.length + 'mm × ' + m.count + '개').join(' + ')
-          + '</b> · ' + (trimmed.length > 0
-            ? trimmed.map((b) => b.used).join(', ') + ' 로 재단, ' + plan.leftover + ' 남음'
-            : '재단 없이 가로 ' + item.width + ' 에 딱 맞음');
+          + '</b> · ' + (plan.leftover > 0
+            ? '규격 그대로 나갑니다. 가로 ' + item.width + ' 보다 '
+              + '<b>' + plan.leftover + ' 길어</b> 직접 잘라 쓰셔야 합니다'
+            : '가로 ' + item.width + ' 에 딱 맞습니다');
         fOpt.appendChild(hint);
       }
 
@@ -1707,7 +1646,7 @@ function formatQuote(result) {
       it.segments.map((s) => s.cutLength).join(' + '),
       it.sheets,
       it.strips,
-      it.cutCount + it.moldingCutCount,
+      it.cutCount,
     ]);
     const head = ['사양', '입력 치수', '시공가로', '원장+낱개', '완성세로', '재단길이', '원장', '낱개', '재단횟수'];
     $('#detail').innerHTML =
