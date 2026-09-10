@@ -41,7 +41,7 @@ test('TC-1 반달 / 화이트 / 1200 × 2000 / 몰딩 O / 끝단정리 X', () =>
   assert.equal(item.finishedLength, 1985, '완성 치수 = 2000 - 15');
   assert.equal(item.cutLength, 1990, '재단 길이 = 완성 1985 + 재단손실 5');
   assert.deepEqual(item.widthPlan,
-    { boards: 4, strips: 1, scrap: 80, scrapFrom: 'strip', covered: 1280 },
+    { boards: 4, strips: 1, covered: 1280, overhang: 80 },
     '가로 1200 = 295 × 4 + 100 × 1');
   assert.equal(item.usableLength, 2440, '끝단정리 X → 2440');
   assert.equal(item.piecesPerSheet, 1, '원장당 = floor(2460 / 2010)');
@@ -77,7 +77,7 @@ test('TC-2 반달 / 화이트 / 590 × 800 / 몰딩 X / 끝단정리 X', () => {
   assert.equal(item.finishedLength, 800, '몰딩 미사용 → 완성 치수는 세로 그대로');
   assert.equal(item.cutLength, 805, '재단 길이 = 800 + 5');
   assert.deepEqual(item.widthPlan,
-    { boards: 2, strips: 0, scrap: 0, scrapFrom: null, covered: 590 },
+    { boards: 2, strips: 0, covered: 590, overhang: 0 },
     '590 = 295 × 2, 낱개 없음');
   assert.equal(item.piecesPerSheet, 2, 'floor(2460 / 825)');
   assert.equal(item.sheets, 1, 'ceil(2 / 2)');
@@ -113,10 +113,10 @@ test('TC-4 사각 / 화이트 / 1200 × 2000 / 몰딩 O — 유효폭 차이', (
   });
 
   assert.deepEqual(square.widthPlan,
-    { boards: 4, strips: 0, scrap: 0, scrapFrom: null, covered: 1200 },
+    { boards: 4, strips: 0, covered: 1200, overhang: 0 },
     '사각 1200 = 300 × 4, 딱 떨어져서 낱개 없음');
   assert.deepEqual(half.widthPlan,
-    { boards: 4, strips: 1, scrap: 80, scrapFrom: 'strip', covered: 1280 },
+    { boards: 4, strips: 1, covered: 1280, overhang: 80 },
     '반달 1200 = 295 × 4 + 100 × 1');
 });
 
@@ -155,35 +155,47 @@ test('TC-5 보강: 사양이 다르면 줄을 나눈다', () => {
 // --- 2.3 가로 채우기 (원장 + 100mm 낱개) ------------------------------------
 test('가로는 원장으로 채우고 남는 폭을 100mm 낱개로 메운다', () => {
   assert.deepEqual(widthPlan(400, 300),
-    { boards: 1, strips: 1, scrap: 0, scrapFrom: null, covered: 400 },
+    { boards: 1, strips: 1, covered: 400, overhang: 0 },
     '사각 400 → 300 1장 + 100 1장');
   assert.deepEqual(widthPlan(1200, 300),
-    { boards: 4, strips: 0, scrap: 0, scrapFrom: null, covered: 1200 });
+    { boards: 4, strips: 0, covered: 1200, overhang: 0 });
   assert.deepEqual(widthPlan(1250, 300),
-    { boards: 4, strips: 1, scrap: 50, scrapFrom: 'strip', covered: 1300 });
+    { boards: 4, strips: 1, covered: 1300, overhang: 50 });
   assert.deepEqual(widthPlan(1400, 300),
-    { boards: 4, strips: 2, scrap: 0, scrapFrom: null, covered: 1400 },
+    { boards: 4, strips: 2, covered: 1400, overhang: 0 },
     '남는 폭 200 → 낱개 2개 (200 < 300)');
 });
 
 test('낱개로 메우는 폭이 원장 폭 이상이면 원장 1장을 쓴다', () => {
   // 사각: 낱개 3개 = 300 ≥ 300 → 원장 1장. 자재량 같고 개수는 적다.
   assert.deepEqual(widthPlan(1450, 300),
-    { boards: 5, strips: 0, scrap: 50, scrapFrom: 'board', covered: 1500 },
+    { boards: 5, strips: 0, covered: 1500, overhang: 50 },
     '남는 폭 250 → 낱개 3개 대신 원장 1장');
   // 가로가 유효폭보다 좁아도 마찬가지
   assert.deepEqual(widthPlan(250, 300),
-    { boards: 1, strips: 0, scrap: 50, scrapFrom: 'board', covered: 300 });
+    { boards: 1, strips: 0, covered: 300, overhang: 50 });
   assert.deepEqual(widthPlan(150, 300),
-    { boards: 0, strips: 2, scrap: 50, scrapFrom: 'strip', covered: 200 },
+    { boards: 0, strips: 2, covered: 200, overhang: 50 },
     '남는 폭 150 → 낱개 2개 (200 < 300)');
   // 반달은 295 라 낱개 3개(300)면 이미 원장 폭을 넘는다
   assert.deepEqual(widthPlan(500, 295),
-    { boards: 2, strips: 0, scrap: 90, scrapFrom: 'board', covered: 590 },
+    { boards: 2, strips: 0, covered: 590, overhang: 90 },
     '남는 폭 205 → 원장 1장');
   assert.deepEqual(widthPlan(495, 295),
-    { boards: 1, strips: 2, scrap: 0, scrapFrom: null, covered: 495 },
+    { boards: 1, strips: 2, covered: 495, overhang: 0 },
     '남는 폭 200 → 낱개 2개 (200 < 295)');
+});
+
+test('폭 재단을 하지 않으므로 규격 합계가 시공 폭이고 가로 자투리는 없다', () => {
+  const item = calculateItem({ shape: 'square', color: '화이트', width: 1970, height: 1170 });
+
+  assert.deepEqual(item.widthPlan,
+    { boards: 6, strips: 2, covered: 2000, overhang: 30 },
+    '1970 → 300 × 6 + 100 × 2 = 2000, 30 넘침');
+
+  const result = calculate([{ shape: 'square', color: '화이트', width: 1970, height: 1170 }]);
+  assert.ok(!formatLeftovers(result).includes('가로 자르고'), '폭 자투리 줄이 없다');
+  assert.ok(leftoverPieces(result).every((p) => p.from !== 'rip'), '폭 자투리 조각이 없다');
 });
 
 // --- 2.2b 세로 나누기 (2440 초과) -------------------------------------------
@@ -358,7 +370,6 @@ test('TC-1 자투리 — 원장/낱개를 나눠 적는다', () => {
     [
       '반달-화이트 : 가로 295 X 세로 450, 4개 (세로 자르고 남은 부분)',
       '반달-화이트 : 가로 100 X 세로 450, 1개 (세로 자르고 남은 부분)',
-      '반달-화이트 : 가로 80 X 세로 1985, 1개 (가로 자르고 남은 부분)',
       '마감몰딩-화이트 : 남는 길이 없음',
     ].join('\n'),
   );
@@ -386,7 +397,6 @@ test('합산된 사양은 자투리도 합산 기준으로 다시 계산한다',
     [
       '반달-화이트 : 가로 295 X 세로 810, 2개 (세로 자르고 남은 부분)',
       '반달-화이트 : 가로 100 X 세로 810, 1개 (세로 자르고 남은 부분)',
-      '반달-화이트 : 가로 90 X 세로 800, 2개 (가로 자르고 남은 부분)',
     ].join('\n'),
   );
 });
@@ -454,7 +464,7 @@ test('끝단정리 여부가 다르면 자재당 개수를 따로 계산하고 �
 });
 
 // --- 4. 도면 데이터 ---------------------------------------------------------
-test('벽면 배치도 — 열 폭 합이 가로, 행 길이 합이 세로', () => {
+test('벽면 배치도 — 열 폭 합이 시공 가로, 행 길이 합이 세로', () => {
   const result = calculate([{
     shape: 'half', color: '화이트', width: 1200, height: 2000, useMolding: true,
   }]);
@@ -462,10 +472,11 @@ test('벽면 배치도 — 열 폭 합이 가로, 행 길이 합이 세로', () 
 
   assert.deepEqual(wall.columns.map((c) => [c.kind, c.width]), [
     ['board', 295], ['board', 295], ['board', 295], ['board', 295],
-    ['strip', 20], // 100 낱개를 20 으로 잘라 씀
+    ['strip', 100], // 폭 재단을 안 하므로 낱개도 100 그대로
   ]);
-  assert.equal(wall.columns.at(-1).trimmed, true);
-  assert.equal(wall.columns.reduce((n, c) => n + c.width, 0), 1200, '열 폭 합 = 가로');
+  assert.equal(wall.columns.reduce((n, c) => n + c.width, 0), 1280, '열 폭 합 = 시공 가로');
+  assert.equal(wall.covered, 1280);
+  assert.equal(wall.overhang, 80, '요청 1200 보다 80 넘친다');
 
   assert.deepEqual(wall.rows, [
     { kind: 'molding', length: 15 },
@@ -536,8 +547,6 @@ test('자투리 목록 — 재단 후 손에 남는 조각을 한 곳에 모은�
     [
       // 완성 3985 = 2435 + 1550 → 재단 2440 + 1555
       ['반달', 295, 885, 4, 'cut'],   // 1555 조각을 뽑은 원장 4장, 2440 - 1555
-      ['반달', 80, 2435, 1, 'rip'],   // 마지막 열을 100 → 20 으로 자르고 남음
-      ['반달', 80, 1550, 1, 'rip'],
       ['반달', 100, 885, 1, 'cut'],   // 낱개에서도 같은 길이가 남는다
     ],
     '큰 조각부터 (넓이 기준)',

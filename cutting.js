@@ -91,34 +91,27 @@ export function lengthPlan(finished, usableLength) {
 // 자재량은 같거나 적으면서 개수는 적기 때문. (사각 남는 폭 250 → 낱개 3개 300 = 원장 1장)
 // 그래서 낱개는 최대 (유효폭 - 100) 폭까지만 쓴다. 사각 200 / 반달 195.
 //
-// 마지막 1장(낱개든 원장이든)은 폭을 잘라 쓰고 자투리는 버린다.
+// ⚠️ 폭 재단은 하지 않는다. 세로만 자를 수 있고 가로는 규격(유효폭 / 100) 그대로 나간다.
+// 그래서 시공 폭은 규격 합계로 고정되고, 요청 가로보다 넘치는 만큼이 overhang 이다.
+// 모자라면 벽이 비므로 항상 덮는 쪽(올림)으로 맞춘다. 넘치는 폭은 현장에서 처리한다.
 export function widthPlan(width, effectiveWidth) {
   let boards = Math.floor(width / effectiveWidth);
   const rest = width - boards * effectiveWidth;
   let strips = rest > 0 ? Math.ceil(rest / STRIP_WIDTH) : 0;
 
-  let scrap = 0;
-  let scrapFrom = null;
-  if (strips > 0) {
-    if (strips * STRIP_WIDTH >= effectiveWidth) {
-      boards += 1;
-      strips = 0;
-      scrap = effectiveWidth - rest;
-      scrapFrom = scrap > 0 ? STOCK_BOARD : null;
-    } else {
-      scrap = strips * STRIP_WIDTH - rest;
-      scrapFrom = scrap > 0 ? STOCK_STRIP : null;
-    }
+  if (strips * STRIP_WIDTH >= effectiveWidth) {
+    boards += 1;
+    strips = 0;
   }
 
+  const covered = boards * effectiveWidth + strips * STRIP_WIDTH;
   return {
     boards,
     strips,
-    /** 마지막 1장을 폭 재단하고 버리는 양 */
-    scrap,
-    /** 그 자투리가 원장에서 나오는지 낱개에서 나오는지 */
-    scrapFrom,
-    covered: boards * effectiveWidth + strips * STRIP_WIDTH,
+    /** 규격대로 깔았을 때 실제 시공 폭 */
+    covered,
+    /** 요청 가로보다 넘치는 폭. 우리가 자르지 않으므로 자투리가 아니다 */
+    overhang: covered - width,
   };
 }
 
@@ -196,20 +189,8 @@ export function sheetTails(pieces, perSheet, usableLength, length) {
     .sort((a, b) => b.length - a.length);
 }
 
-// (2) 가로 자르고 남은 부분: 마지막 100mm 낱개를 폭 재단하고 버리는 조각.
-//     widthPlan().scrap 참조.
+// (2) 폭 재단은 하지 않으므로 가로 자투리는 나오지 않는다. widthPlan().overhang 참조.
 // (3) 몰딩 자투리는 moldingPlan().leftover 참조.
-
-function mergeWidthScraps(scraps) {
-  const map = new Map();
-  for (const s of scraps) {
-    const key = `${s.width}|${s.length}`;
-    const row = map.get(key) ?? { width: s.width, length: s.length, count: 0 };
-    row.count += s.count;
-    map.set(key, row);
-  }
-  return [...map.values()].sort((a, b) => b.width - a.width || b.length - a.length);
-}
 
 // --- 입력 검증 (CLAUDE.md 5-(4)) --------------------------------------------
 export function validateItem(input) {
@@ -284,9 +265,6 @@ export function calculateItem(input) {
       piecesPerSheet: perSheet,
       pieces,
       stocks,
-      // 폭 자투리도 같이 재단되므로 길이는 완성 치수 기준. 조각마다 하나씩 나온다.
-      widthScrap: plan.scrap > 0 ? { width: plan.scrap, length: segFinished, count: 1 } : null,
-      widthScrapFrom: plan.scrapFrom,
     };
   });
 
@@ -355,10 +333,8 @@ export function calculate(inputs) {
           sheetLength: item.shape.sheetLength,
           trimEnds: item.input.trimEnds,
           pieces: 0,
-          widthScraps: [],
         };
         bucket.pieces += stock.pieces;
-        if (seg.widthScrap && stock.kind === seg.widthScrapFrom) bucket.widthScraps.push(seg.widthScrap);
         buckets.set(key, bucket);
       }
     }
@@ -418,10 +394,9 @@ export function calculate(inputs) {
     const key = [b.shape, b.color, b.cutLength, b.kind].join('|');
     const row = leftoverMap.get(key) ?? {
       shape: b.shape, shapeKey: b.shapeKey, color: b.color, kind: b.kind, stockWidth: b.stockWidth,
-      cutLength: b.cutLength, sheetTails: [], widthScraps: [],
+      cutLength: b.cutLength, sheetTails: [],
     };
     row.sheetTails.push(...b.sheetTails);
-    row.widthScraps.push(...b.widthScraps); // 폭 자투리는 마지막 낱개에서 나온다
     leftoverMap.set(key, row);
   }
   const leftovers = [...leftoverMap.values()]
@@ -431,7 +406,6 @@ export function calculate(inputs) {
         .reduce((m, t) => m.set(t.length, (m.get(t.length) ?? 0) + t.count), new Map())]
         .map(([length, count]) => ({ length, count }))
         .sort((a, b) => b.length - a.length),
-      widthScraps: mergeWidthScraps(row.widthScraps),
     }))
     .sort(bySpec);
 
@@ -506,20 +480,15 @@ export function barGroupsOf(buckets) {
 
 /**
  * 벽면 배치도. 가로는 자재 열, 세로는 조각(이음)으로 나뉜다.
- * 마지막 열은 폭을 잘라 쓰므로 실제 폭이 줄어든다.
+ * 폭 재단을 하지 않으므로 열은 모두 규격 폭 그대로다.
+ * 그래서 시공 폭(covered)이 요청 가로보다 넓을 수 있고, 그 차이가 overhang 이다.
  */
 export function wallLayout(item) {
-  const { boards, strips, scrap } = item.widthPlan;
-  const nominal = [
+  const { boards, strips, covered, overhang } = item.widthPlan;
+  const columns = [
     ...Array.from({ length: boards }, () => ({ kind: STOCK_BOARD, width: item.shape.effectiveWidth })),
     ...Array.from({ length: strips }, () => ({ kind: STOCK_STRIP, width: STRIP_WIDTH })),
   ];
-  const columns = nominal.map((c, i) => ({
-    ...c,
-    nominal: c.width,
-    width: i === nominal.length - 1 ? c.width - scrap : c.width,
-    trimmed: i === nominal.length - 1 && scrap > 0,
-  }));
 
   const rows = [];
   if (item.input.useMolding) rows.push({ kind: 'molding', length: MOLDING_DEDUCTION });
@@ -527,7 +496,7 @@ export function wallLayout(item) {
     rows.push({ kind: 'piece', length: seg.finishedLength, cutLength: seg.cutLength });
   }
 
-  return { width: item.width, height: item.height, columns, rows };
+  return { width: item.width, covered, overhang, height: item.height, columns, rows };
 }
 
 /**
@@ -548,10 +517,6 @@ export function leftoverPieces(result) {
       add({ shape: row.shape, shapeKey: row.shapeKey, color: row.color, kind: row.kind,
         width: row.stockWidth, length: t.length, count: t.count, from: 'cut' });
     }
-    for (const s of row.widthScraps) {
-      add({ shape: row.shape, shapeKey: row.shapeKey, color: row.color, kind: row.kind,
-        width: s.width, length: s.length, count: s.count, from: 'rip' });
-    }
   }
   for (const m of result.moldingLeftovers) {
     if (m.leftover <= 0) continue;
@@ -564,7 +529,6 @@ export function leftoverPieces(result) {
 
 export const LEFTOVER_SOURCE = {
   cut: '세로 자르고 남은 부분',
-  rip: '가로 자르고 남은 부분',
   molding: '마감몰딩 남은 길이',
 };
 
@@ -630,9 +594,6 @@ export function formatLeftovers(result) {
   for (const row of result.leftovers) {
     for (const t of row.sheetTails) {
       lines.push(`${row.shape}-${row.color} : 가로 ${row.stockWidth} X 세로 ${t.length}, ${t.count}개 (세로 자르고 남은 부분)`);
-    }
-    for (const s of row.widthScraps) {
-      lines.push(`${row.shape}-${row.color} : 가로 ${s.width} X 세로 ${s.length}, ${s.count}개 (가로 자르고 남은 부분)`);
     }
   }
   for (const m of result.moldingLeftovers) {

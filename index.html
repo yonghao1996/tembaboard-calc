@@ -400,6 +400,7 @@ footer {
       <span>낱개템바 <b>100</b></span>
       <span>끝단정리 <b>-20</b></span>
       <span>상단몰딩 <b>-15</b></span>
+      <span>가로 재단 <b>불가</b></span>
     </div>
   </header>
 
@@ -505,6 +506,7 @@ footer {
 
   <footer>
     <span>재단 지시서·도면 숫자 = 완성 치수. 재단손실 5mm 는 자르는 쪽에서 감안한다. 원장 점유 길이(완성 +5)는 계산 상세 표의 재단길이 칸에서 확인. 100폭 = 낱개 템바.</span>
+    <span>세로만 재단합니다. 가로(폭)는 자르지 못해 규격 그대로 나가므로, 시공 가로가 요청 가로보다 넓을 수 있습니다. 넘치는 폭은 현장에서 처리하세요.</span>
   </footer>
 </div>
 
@@ -721,34 +723,27 @@ function lengthPlan(finished, usableLength) {
 // 자재량은 같거나 적으면서 개수는 적기 때문. (사각 남는 폭 250 → 낱개 3개 300 = 원장 1장)
 // 그래서 낱개는 최대 (유효폭 - 100) 폭까지만 쓴다. 사각 200 / 반달 195.
 //
-// 마지막 1장(낱개든 원장이든)은 폭을 잘라 쓰고 자투리는 버린다.
+// ⚠️ 폭 재단은 하지 않는다. 세로만 자를 수 있고 가로는 규격(유효폭 / 100) 그대로 나간다.
+// 그래서 시공 폭은 규격 합계로 고정되고, 요청 가로보다 넘치는 만큼이 overhang 이다.
+// 모자라면 벽이 비므로 항상 덮는 쪽(올림)으로 맞춘다. 넘치는 폭은 현장에서 처리한다.
 function widthPlan(width, effectiveWidth) {
   let boards = Math.floor(width / effectiveWidth);
   const rest = width - boards * effectiveWidth;
   let strips = rest > 0 ? Math.ceil(rest / STRIP_WIDTH) : 0;
 
-  let scrap = 0;
-  let scrapFrom = null;
-  if (strips > 0) {
-    if (strips * STRIP_WIDTH >= effectiveWidth) {
-      boards += 1;
-      strips = 0;
-      scrap = effectiveWidth - rest;
-      scrapFrom = scrap > 0 ? STOCK_BOARD : null;
-    } else {
-      scrap = strips * STRIP_WIDTH - rest;
-      scrapFrom = scrap > 0 ? STOCK_STRIP : null;
-    }
+  if (strips * STRIP_WIDTH >= effectiveWidth) {
+    boards += 1;
+    strips = 0;
   }
 
+  const covered = boards * effectiveWidth + strips * STRIP_WIDTH;
   return {
     boards,
     strips,
-    /** 마지막 1장을 폭 재단하고 버리는 양 */
-    scrap,
-    /** 그 자투리가 원장에서 나오는지 낱개에서 나오는지 */
-    scrapFrom,
-    covered: boards * effectiveWidth + strips * STRIP_WIDTH,
+    /** 규격대로 깔았을 때 실제 시공 폭 */
+    covered,
+    /** 요청 가로보다 넘치는 폭. 우리가 자르지 않으므로 자투리가 아니다 */
+    overhang: covered - width,
   };
 }
 
@@ -826,20 +821,8 @@ function sheetTails(pieces, perSheet, usableLength, length) {
     .sort((a, b) => b.length - a.length);
 }
 
-// (2) 가로 자르고 남은 부분: 마지막 100mm 낱개를 폭 재단하고 버리는 조각.
-//     widthPlan().scrap 참조.
+// (2) 폭 재단은 하지 않으므로 가로 자투리는 나오지 않는다. widthPlan().overhang 참조.
 // (3) 몰딩 자투리는 moldingPlan().leftover 참조.
-
-function mergeWidthScraps(scraps) {
-  const map = new Map();
-  for (const s of scraps) {
-    const key = `${s.width}|${s.length}`;
-    const row = map.get(key) ?? { width: s.width, length: s.length, count: 0 };
-    row.count += s.count;
-    map.set(key, row);
-  }
-  return [...map.values()].sort((a, b) => b.width - a.width || b.length - a.length);
-}
 
 // --- 입력 검증 (CLAUDE.md 5-(4)) --------------------------------------------
 function validateItem(input) {
@@ -914,9 +897,6 @@ function calculateItem(input) {
       piecesPerSheet: perSheet,
       pieces,
       stocks,
-      // 폭 자투리도 같이 재단되므로 길이는 완성 치수 기준. 조각마다 하나씩 나온다.
-      widthScrap: plan.scrap > 0 ? { width: plan.scrap, length: segFinished, count: 1 } : null,
-      widthScrapFrom: plan.scrapFrom,
     };
   });
 
@@ -985,10 +965,8 @@ function calculate(inputs) {
           sheetLength: item.shape.sheetLength,
           trimEnds: item.input.trimEnds,
           pieces: 0,
-          widthScraps: [],
         };
         bucket.pieces += stock.pieces;
-        if (seg.widthScrap && stock.kind === seg.widthScrapFrom) bucket.widthScraps.push(seg.widthScrap);
         buckets.set(key, bucket);
       }
     }
@@ -1048,10 +1026,9 @@ function calculate(inputs) {
     const key = [b.shape, b.color, b.cutLength, b.kind].join('|');
     const row = leftoverMap.get(key) ?? {
       shape: b.shape, shapeKey: b.shapeKey, color: b.color, kind: b.kind, stockWidth: b.stockWidth,
-      cutLength: b.cutLength, sheetTails: [], widthScraps: [],
+      cutLength: b.cutLength, sheetTails: [],
     };
     row.sheetTails.push(...b.sheetTails);
-    row.widthScraps.push(...b.widthScraps); // 폭 자투리는 마지막 낱개에서 나온다
     leftoverMap.set(key, row);
   }
   const leftovers = [...leftoverMap.values()]
@@ -1061,7 +1038,6 @@ function calculate(inputs) {
         .reduce((m, t) => m.set(t.length, (m.get(t.length) ?? 0) + t.count), new Map())]
         .map(([length, count]) => ({ length, count }))
         .sort((a, b) => b.length - a.length),
-      widthScraps: mergeWidthScraps(row.widthScraps),
     }))
     .sort(bySpec);
 
@@ -1136,20 +1112,15 @@ function barGroupsOf(buckets) {
 
 /**
  * 벽면 배치도. 가로는 자재 열, 세로는 조각(이음)으로 나뉜다.
- * 마지막 열은 폭을 잘라 쓰므로 실제 폭이 줄어든다.
+ * 폭 재단을 하지 않으므로 열은 모두 규격 폭 그대로다.
+ * 그래서 시공 폭(covered)이 요청 가로보다 넓을 수 있고, 그 차이가 overhang 이다.
  */
 function wallLayout(item) {
-  const { boards, strips, scrap } = item.widthPlan;
-  const nominal = [
+  const { boards, strips, covered, overhang } = item.widthPlan;
+  const columns = [
     ...Array.from({ length: boards }, () => ({ kind: STOCK_BOARD, width: item.shape.effectiveWidth })),
     ...Array.from({ length: strips }, () => ({ kind: STOCK_STRIP, width: STRIP_WIDTH })),
   ];
-  const columns = nominal.map((c, i) => ({
-    ...c,
-    nominal: c.width,
-    width: i === nominal.length - 1 ? c.width - scrap : c.width,
-    trimmed: i === nominal.length - 1 && scrap > 0,
-  }));
 
   const rows = [];
   if (item.input.useMolding) rows.push({ kind: 'molding', length: MOLDING_DEDUCTION });
@@ -1157,7 +1128,7 @@ function wallLayout(item) {
     rows.push({ kind: 'piece', length: seg.finishedLength, cutLength: seg.cutLength });
   }
 
-  return { width: item.width, height: item.height, columns, rows };
+  return { width: item.width, covered, overhang, height: item.height, columns, rows };
 }
 
 /**
@@ -1178,10 +1149,6 @@ function leftoverPieces(result) {
       add({ shape: row.shape, shapeKey: row.shapeKey, color: row.color, kind: row.kind,
         width: row.stockWidth, length: t.length, count: t.count, from: 'cut' });
     }
-    for (const s of row.widthScraps) {
-      add({ shape: row.shape, shapeKey: row.shapeKey, color: row.color, kind: row.kind,
-        width: s.width, length: s.length, count: s.count, from: 'rip' });
-    }
   }
   for (const m of result.moldingLeftovers) {
     if (m.leftover <= 0) continue;
@@ -1194,7 +1161,6 @@ function leftoverPieces(result) {
 
 const LEFTOVER_SOURCE = {
   cut: '세로 자르고 남은 부분',
-  rip: '가로 자르고 남은 부분',
   molding: '마감몰딩 남은 길이',
 };
 
@@ -1260,9 +1226,6 @@ function formatLeftovers(result) {
   for (const row of result.leftovers) {
     for (const t of row.sheetTails) {
       lines.push(`${row.shape}-${row.color} : 가로 ${row.stockWidth} X 세로 ${t.length}, ${t.count}개 (세로 자르고 남은 부분)`);
-    }
-    for (const s of row.widthScraps) {
-      lines.push(`${row.shape}-${row.color} : 가로 ${s.width} X 세로 ${s.length}, ${s.count}개 (가로 자르고 남은 부분)`);
     }
   }
   for (const m of result.moldingLeftovers) {
@@ -1543,6 +1506,7 @@ function formatQuote(result) {
     const rows = result.items.map((it) => [
       it.shape.label + ' / ' + storeColorLabel(it.color.name, it.shape.key),
       it.width + ' × ' + it.height,
+      it.widthPlan.covered + (it.widthPlan.overhang > 0 ? ' (+' + it.widthPlan.overhang + ')' : ''),
       it.widthPlan.boards + ' + ' + it.widthPlan.strips,
       it.segments.map((s) => s.finishedLength).join(' + '),
       it.segments.map((s) => s.cutLength).join(' + '),
@@ -1550,7 +1514,7 @@ function formatQuote(result) {
       it.strips,
       it.cutCount,
     ]);
-    const head = ['사양', '입력 치수', '원장+낱개', '완성세로', '재단길이', '원장', '낱개', '재단횟수'];
+    const head = ['사양', '입력 치수', '시공가로', '원장+낱개', '완성세로', '재단길이', '원장', '낱개', '재단횟수'];
     $('#detail').innerHTML =
       '<thead><tr>' + head.map((h) => '<th>' + h + '</th>').join('') + '</tr></thead>' +
       '<tbody>' + rows.map((r) => '<tr>' + r.map((c, i) =>
@@ -1618,8 +1582,7 @@ function formatQuote(result) {
   function columnSummary(columns) {
     const runs = [];
     for (const c of columns) {
-      const name = (c.kind === 'strip' ? '낱개 ' : '') +
-        (c.trimmed ? c.nominal + '→' + c.width : String(c.width));
+      const name = (c.kind === 'strip' ? '낱개 ' : '') + String(c.width);
       const last = runs[runs.length - 1];
       if (last && last.name === name) last.n += 1;
       else runs.push({ name, n: 1 });
@@ -1632,8 +1595,7 @@ function formatQuote(result) {
     const PAD = { l: 6, t: 48, r: 72, b: 30 };
     const MIN_COL = 11;   // 얇은 열도 보이게 최소 폭을 준다
     const MIN_ROW = 9;
-    const GAP = 18;       // 결과물과 자투리 사이 간격
-    const scale = Math.min(340 / wall.width, 320 / wall.height);
+    const scale = Math.min(340 / wall.covered, 320 / wall.height);
 
     const cols = wall.columns.map((c) => ({ ...c, scaled: c.width * scale, draw: Math.max(c.width * scale, MIN_COL) }));
     const rows = wall.rows.map((r) => ({ ...r, scaled: r.length * scale, draw: Math.max(r.length * scale, MIN_ROW) }));
@@ -1641,10 +1603,8 @@ function formatQuote(result) {
     const H = rows.reduce((n, r) => n + r.draw, 0);
     const offScale = cols.some((c) => c.draw > c.scaled + 0.5) || rows.some((r) => r.draw > r.scaled + 0.5);
 
-    const scrapMm = item.widthPlan.scrap;
-    const scrapW = scrapMm > 0 ? Math.max(scrapMm * scale, 13) : 0;
-    const scrapX = PAD.l + W + GAP;
-    const totalW = W + (scrapW > 0 ? GAP + scrapW : 0);
+    const overhang = wall.overhang;
+    const totalW = W;
 
     const hex = swatchOf(item.color.name, item.shape.key) || FALLBACK;
     const moldHex = shade(hex, 0.18);
@@ -1659,10 +1619,6 @@ function formatQuote(result) {
         parts.push(el('rect', { x, y, width: col.draw, height: row.draw, class: 'thin' }));
         x += col.draw;
       }
-      if (scrapW > 0 && row.kind === 'piece') {
-        parts.push(rect(scrapX, y, scrapW, row.draw, 'waste'));
-        parts.push(el('rect', { x: scrapX, y, width: scrapW, height: row.draw, class: 'edge' }));
-      }
       parts.push(txt(PAD.l + totalW + 7, y + row.draw / 2 + 3.5,
         row.kind === 'molding' ? '몰딩 ' + row.length : String(row.length), { anchor: 'start', cls: 'dim' }));
       y += row.draw;
@@ -1672,7 +1628,7 @@ function formatQuote(result) {
     const runs = [];
     let cx = PAD.l;
     for (const col of cols) {
-      const name = col.trimmed ? col.nominal + '→' + col.width : String(col.width);
+      const name = String(col.width);
       const last = runs[runs.length - 1];
       if (last && last.name === name && last.kind === col.kind) { last.n += 1; last.w += col.draw; }
       else runs.push({ name, kind: col.kind, n: 1, x: cx, w: col.draw });
@@ -1692,11 +1648,10 @@ function formatQuote(result) {
       if (run.w >= label.length * 6.6 + 8) parts.push(txt(mid, PAD.t - 9, label, { cls: 'dim' }));
       else putLabel(mid, label);
     }
-    if (scrapW > 0) putLabel(scrapX + scrapW / 2, '자투리 ' + scrapMm);
-
     parts.push(el('rect', { x: PAD.l, y: PAD.t, width: W, height: H, class: 'edge' }));
-    parts.push(txt(PAD.l + W / 2, PAD.t + H + 17, '결과물 가로 ' + wall.width, { cls: 'dim' }));
-    if (scrapW > 0) parts.push(txt(scrapX + scrapW / 2, PAD.t + H + 17, '버림', { cls: 'dim' }));
+    parts.push(txt(PAD.l + W / 2, PAD.t + H + 17,
+      '시공 가로 ' + wall.covered + (overhang > 0 ? ' (요청 ' + wall.width + ' +' + overhang + ')' : ''),
+      { cls: 'dim' }));
 
     const vb = [0, 0, PAD.l + totalW + PAD.r, PAD.t + H + PAD.b];
     const label = item.shape.label + ' ' + item.color.name + ' ' + wall.width + ' × ' + wall.height;
@@ -1710,12 +1665,9 @@ function formatQuote(result) {
       label,
       '열 구성 ' + columnSummary(wall.columns),
       item.joints > 0 ? '이음 ' + item.joints + '군데' : '이음 없음',
-      ...(scrapMm > 0
-        ? Object.entries(item.segments.reduce((acc, seg) => {
-            acc[seg.finishedLength] = (acc[seg.finishedLength] ?? 0) + 1;
-            return acc;
-          }, {})).map(([len, n]) => '자투리 가로 ' + scrapMm + ' X 세로 ' + len + ', ' + n + '개')
-        : ['폭 자투리 없음']),
+      overhang > 0
+        ? '가로 ' + overhang + ' 넘침 (폭 재단 불가, 현장에서 처리)'
+        : '가로 딱 맞음',
       offScale ? '<span style="opacity:.75">얇은 열·몰딩은 보이도록 넓게 그림</span>' : '',
     ].filter(Boolean).map((t) => '<span>' + t + '</span>').join('');
     return figure(svg, caption);
