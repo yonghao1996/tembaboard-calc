@@ -411,13 +411,13 @@ footer {
     <div class="col-in">
       <section class="panel">
         <div class="panel-head">
-          <h2>주문 항목</h2>
+          <h2>재단면</h2>
           <span class="hint">치수 단위 mm</span>
         </div>
         <div class="panel-body">
           <div id="items" style="display:flex;flex-direction:column;gap:14px"></div>
           <div class="row-actions">
-            <button class="btn solid" id="add">＋ 항목 추가</button>
+            <button class="btn solid" id="add">＋ 재단면 추가</button>
             <button class="btn" id="reset">초기화</button>
           </div>
         </div>
@@ -426,7 +426,7 @@ footer {
       <section class="panel">
         <div class="panel-head">
           <h2>계산 상세</h2>
-          <span class="hint">항목별 중간값</span>
+          <span class="hint">재단면별 중간값</span>
         </div>
         <div class="panel-body">
           <div class="tbl-scroll"><table id="detail"></table></div>
@@ -1369,7 +1369,7 @@ function formatQuote(result) {
       head.className = 'item-head';
       const no = document.createElement('span');
       no.className = 'item-no';
-      no.textContent = '항목 ' + String(idx + 1).padStart(2, '0');
+      no.textContent = '재단면 ' + String(idx + 1).padStart(2, '0');
       head.appendChild(no);
       if (items.length > 1) {
         const del = document.createElement('button');
@@ -1535,7 +1535,7 @@ function formatQuote(result) {
 
   /**
    * 가로는 규격 그대로 나가므로 시공 폭이 요청 가로보다 넓을 수 있다.
-   * 그 폭은 우리가 자르지 않으니, 어느 항목이 얼마나 넘치는지 고객이 알아야 한다.
+   * 그 폭은 우리가 자르지 않으니, 어느 재단면이 얼마나 넘치는지 고객이 알아야 한다.
    */
   function renderDetailNote(result) {
     const box = $('#detail-note');
@@ -1551,7 +1551,7 @@ function formatQuote(result) {
     }
     box.className = 'note warn';
     box.innerHTML = '⚠ 가로(폭)는 재단해 드리지 않습니다. 세로만 재단합니다. '
-      + over.map((o) => '<b>항목 ' + o.no + ' 은 ' + o.mm + 'mm</b>').join(', ')
+      + over.map((o) => '<b>재단면 ' + o.no + ' 은 ' + o.mm + 'mm</b>').join(', ')
       + ' 넘치게 나가니, 마지막 한 장은 <b>벽 폭에 맞춰 직접 잘라 쓰셔야 합니다.</b>';
   }
 
@@ -1691,7 +1691,7 @@ function formatQuote(result) {
     }, parts.join(''));
 
     const caption = [
-      '<b>항목 ' + String(no).padStart(2, '0') + '</b>',
+      '<b>재단면 ' + String(no).padStart(2, '0') + '</b>',
       label,
       '열 구성 ' + columnSummary(wall.columns),
       item.joints > 0 ? '이음 ' + item.joints + '군데' : '이음 없음',
@@ -1808,7 +1808,7 @@ function formatQuote(result) {
 
     const caption = [
       '<b>' + label + '</b>',
-      '항목 ' + String(no).padStart(2, '0'),
+      '재단면 ' + String(no).padStart(2, '0'),
       plan.items.map((m) => m.length + ' × ' + m.count + '개').join(' + '),
       plan.leftover > 0 ? plan.leftover + ' 남음' : '남는 길이 없음',
     ].map((t) => '<span>' + t + '</span>').join('');
