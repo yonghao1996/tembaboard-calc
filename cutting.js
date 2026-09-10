@@ -164,7 +164,28 @@ export function moldingPlan(width) {
   const items = MOLDING_LENGTHS
     .filter((len) => best.pieces[len] > 0)
     .map((len) => ({ length: len, count: best.pieces[len] }));
-  return { items, count: best.count, total: best.total, leftover: best.leftover };
+
+  // 몰딩은 길이 재단이 된다. 긴 자재부터 채우고 마지막 하나만 가로에 맞춰 자른다.
+  // bars = 자재 하나하나가 실제로 얼마나 쓰이는지.
+  let left = width;
+  const bars = [];
+  for (const it of items) {
+    for (let i = 0; i < it.count; i += 1) {
+      const used = Math.min(it.length, Math.max(left, 0));
+      bars.push({ stock: it.length, used });
+      left -= used;
+    }
+  }
+
+  return {
+    items,
+    bars,
+    /** 몰딩 재단 횟수. 딱 떨어지면 0 */
+    cuts: bars.filter((b) => b.used < b.stock).length,
+    count: best.count,
+    total: best.total,
+    leftover: best.leftover,
+  };
 }
 
 // --- 자투리 -----------------------------------------------------------------
@@ -289,8 +310,11 @@ export function calculateItem(input) {
     piecesPerSheet: segments[0].piecesPerSheet,
     sheets: barsOf(STOCK_BOARD),
     strips: barsOf(STOCK_STRIP),
+    /** 템바보드 재단 횟수. 몰딩은 moldingCutCount 에 따로 센다 */
     cutCount: segments.reduce((n, seg) => n + cutCount(usableLength, seg.cutLength, seg.pieces), 0),
     molding: useMolding ? moldingPlan(width) : null,
+    /** 몰딩 길이 재단 횟수. 가로에 딱 맞으면 0 */
+    moldingCutCount: useMolding ? moldingPlan(width).cuts : 0,
   };
 }
 
@@ -425,6 +449,23 @@ export function calculate(inputs) {
   }
   const moldingLeftovers = [...moldingLeftoverMap.values()].sort(bySpec);
 
+  // 몰딩 재단 내역. 자재 규격(stock)별로 실제로 잘라 쓰는 길이(used)를 센다.
+  const moldingCutMap = new Map();
+  for (const item of items) {
+    if (!item.molding) continue;
+    for (const bar of item.molding.bars) {
+      const key = [item.color.name, bar.stock, bar.used].join('|');
+      const row = moldingCutMap.get(key) ?? {
+        color: item.color.name, shapeKey: item.shape.key,
+        stock: bar.stock, used: bar.used, count: 0,
+      };
+      row.count += 1;
+      moldingCutMap.set(key, row);
+    }
+  }
+  const moldingCuts = [...moldingCutMap.values()]
+    .sort((a, b) => colorRank(a.color) - colorRank(b.color) || b.stock - a.stock || a.used - b.used);
+
   return {
     items,
     boards,
@@ -435,7 +476,9 @@ export function calculate(inputs) {
     moldings,
     leftovers,
     moldingLeftovers,
-    cutCount: items.reduce((n, it) => n + it.cutCount, 0),
+    moldingCuts,
+    /** 스토어 '재단 필요해요' 수량. 템바보드 + 몰딩 길이 재단을 합친다 */
+    cutCount: items.reduce((n, it) => n + it.cutCount + it.moldingCutCount, 0),
     joints: items.reduce((n, it) => n + it.joints, 0),
     barGroups: barGroupsOf([...buckets.values()].sort(bySpec)),
     walls: items.map(wallLayout),
@@ -613,8 +656,14 @@ export function formatAdminOrder(result) {
     });
   }
 
-  // 몰딩은 우리가 자르지 않으므로 재단내역 칸 없이 4칸이다.
+  // 몰딩은 길이 재단이 되므로 재단내역 칸도 채운다. 가로에 딱 맞는 자재는 자른 길이가
+  // 곧 규격 길이라 그대로 적힌다.
   for (const m of result.moldings) {
+    const detail = result.moldingCuts
+      .filter((c) => c.color === m.color && c.stock === m.length)
+      .map((c) => `${ADMIN_MOLDING.width}*${c.used}*${ADMIN_MOLDING.thickness} ${c.count}조각`)
+      .join(' / ');
+
     rows.push({
       color: m.color,
       kindRank: 2,
@@ -625,6 +674,7 @@ export function formatAdminOrder(result) {
         `${ADMIN_MOLDING.width}*${m.length}*${ADMIN_MOLDING.thickness}`,
         storeColorLabel(m.color, m.shapeKey),
         m.count,
+        detail,
       ],
     });
   }
@@ -646,12 +696,25 @@ export function formatAdminOrder(result) {
  * (읽는 사람이 주문한 치수를 그대로 보게 하려는 것. 원장 점유 길이는 cutLength)
  */
 export function formatCuttingSheet(result) {
-  return result.cuts
-    .map((c) => {
-      const stock = c.kind === STOCK_STRIP ? ` ${STRIP_WIDTH}폭` : '';
-      return `${c.shape}-${c.color}${stock} : ${c.finishedLength} X ${c.pieces}컷`;
-    })
-    .join('\n');
+  const lines = result.cuts.map((c) => {
+    const stock = c.kind === STOCK_STRIP ? ` ${STRIP_WIDTH}폭` : '';
+    return `${c.shape}-${c.color}${stock} : ${c.finishedLength} X ${c.pieces}컷`;
+  });
+
+  // 몰딩은 길이 재단이 되니 자를 길이를 따로 적는다.
+  // 규격 그대로 나가는 자재는 자를 게 없어서 빠진다.
+  const molding = new Map();
+  for (const c of result.moldingCuts) {
+    if (c.used >= c.stock) continue;
+    const key = `${c.color}|${c.used}`;
+    molding.set(key, (molding.get(key) ?? 0) + c.count);
+  }
+  for (const [key, count] of molding) {
+    const [color, used] = key.split('|');
+    lines.push(`마감몰딩-${color} : ${used} X ${count}컷`);
+  }
+
+  return lines.join('\n');
 }
 
 export const NO_LEFTOVER_TEXT = '자투리 없음';

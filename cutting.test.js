@@ -129,9 +129,14 @@ test('TC-5 동일 모양·색상·재단길이 2건은 한 줄로 합산', () =>
   ]);
 
   // 원장 4 + 2 = 6컷, 낱개 1 + 1 = 2컷
+  // 몰딩은 1200 이 딱 맞아 자를 게 없고, 600 은 1200 자재를 잘라 쓴다
   assert.equal(
     formatCuttingSheet(result),
-    ['반달-화이트 : 1985 X 6컷', '반달-화이트 100폭 : 1985 X 2컷'].join('\n'),
+    [
+      '반달-화이트 : 1985 X 6컷',
+      '반달-화이트 100폭 : 1985 X 2컷',
+      '마감몰딩-화이트 : 600 X 1컷',
+    ].join('\n'),
   );
   assert.deepEqual(result.boards, [{ shape: '반달', shapeKey: 'half', color: '화이트', sheets: 6 }]);
 });
@@ -279,7 +284,8 @@ test('주문 요약은 스토어 옵션명 그대로, 스토어 옵션 순서로
       // 반달 카키 2500 → 원장 8 + 낱개 2, 원장당 floor(2460/1010) = 2
       '템바보드 타입 / 반달, 색상 / JA2210-카키 : 4개',
       '템바보드 타입 / 사각, 색상 / JA6W2-밝은오크 : 4개',
-      '재단 필요해요 > 톡톡으로 말씀주세요 : 24개', // 사각 1×4 + 반달 2×10
+      // 사각 1×4 + 반달 2×10 = 24, 몰딩은 카키 2500 의 마지막 1200 을 60 으로 자르는 1회
+      '재단 필요해요 > 톡톡으로 말씀주세요 : 25개',
       '마감몰딩 2440mm 기준 : 1개',
       '마감몰딩 1200mm 기준 : 2개 (카키 1, 밝은오크 1)',
       '반달템바 (100x2440x9T) : 1개',
@@ -343,11 +349,49 @@ test('몰딩 주문 내역은 색상·규격별로 합산된다', () => {
       // 1200×2000 → 원장 4 + 낱개 1
       // 1100×1000 → 남는 폭 215 라 낱개 3개 대신 원장 1장 → 원장 4장, 원장당 2개 → 2개
       '템바보드 타입 / 반달, 색상 / JA3011-화이트 : 6개',
-      '재단 필요해요 > 톡톡으로 말씀주세요 : 13개',
+      // 13 + 몰딩 1회 (1100 은 1200 자재를 자른다. 1200 은 딱 맞아 0회)
+      '재단 필요해요 > 톡톡으로 말씀주세요 : 14개',
       '마감몰딩 1200mm 기준 : 2개',
       '반달템바 (100x2440x9T) : 1개',
     ].join('\n'),
   );
+});
+
+// --- 몰딩 길이 재단 ---------------------------------------------------------
+test('몰딩은 길이 재단이 되고, 마지막 자재 하나만 잘린다', () => {
+  assert.deepEqual(moldingPlan(1200).bars, [{ stock: 1200, used: 1200 }], '딱 맞으면 안 자른다');
+  assert.equal(moldingPlan(1200).cuts, 0);
+
+  assert.deepEqual(moldingPlan(1970).bars, [{ stock: 2440, used: 1970 }]);
+  assert.equal(moldingPlan(1970).cuts, 1);
+
+  // 2440 은 통으로 쓰고 1200 만 60 으로 자른다
+  assert.deepEqual(moldingPlan(2500).bars,
+    [{ stock: 2440, used: 2440 }, { stock: 1200, used: 60 }]);
+  assert.equal(moldingPlan(2500).cuts, 1);
+
+  assert.equal(moldingPlan(4880).cuts, 0, '2440 두 장이 딱 맞는다');
+});
+
+test('몰딩 재단도 재단 횟수에 들어간다', () => {
+  const exact = calculate([{ shape: 'square', color: '화이트', width: 1200, height: 1000, useMolding: true }]);
+  const trimmed = calculate([{ shape: 'square', color: '화이트', width: 1200, height: 1000, useMolding: false }]);
+
+  assert.equal(exact.items[0].moldingCutCount, 0, '1200 은 딱 맞아 0회');
+  assert.equal(exact.cutCount, trimmed.cutCount, '자를 게 없으면 재단 횟수가 같다');
+
+  const cut = calculate([{ shape: 'square', color: '화이트', width: 1100, height: 1000, useMolding: true }]);
+  const noMold = calculate([{ shape: 'square', color: '화이트', width: 1100, height: 1000, useMolding: false }]);
+  assert.equal(cut.items[0].moldingCutCount, 1);
+  assert.equal(cut.cutCount, noMold.cutCount + 1, '몰딩 1회가 더 붙는다');
+});
+
+test('재단 지시서에 몰딩 자를 길이가 붙고, 딱 맞으면 빠진다', () => {
+  const cut = calculate([{ shape: 'square', color: '화이트', width: 1100, height: 1000, useMolding: true }]);
+  assert.ok(formatCuttingSheet(cut).endsWith('마감몰딩-화이트 : 1100 X 1컷'), formatCuttingSheet(cut));
+
+  const exact = calculate([{ shape: 'square', color: '화이트', width: 1200, height: 1000, useMolding: true }]);
+  assert.ok(!formatCuttingSheet(exact).includes('마감몰딩'), '자를 게 없으면 줄이 없다');
 });
 
 // --- 관리자페이지 주문요약 --------------------------------------------------
@@ -377,7 +421,7 @@ test('관리자 주문요약 — 같은 자재에 길이가 여럿이면 / 로 �
   );
 });
 
-test('관리자 주문요약 — 마감몰딩도 한 줄로 나온다 (재단내역 칸 없음)', () => {
+test('관리자 주문요약 — 마감몰딩도 자를 길이까지 한 줄로 나온다', () => {
   const result = calculate([{
     shape: 'square', color: '연한오크', width: 1970, height: 1170, useMolding: true,
   }]);
@@ -385,7 +429,7 @@ test('관리자 주문요약 — 마감몰딩도 한 줄로 나온다 (재단내
   assert.deepEqual(formatAdminOrder(result).split('\n'), [
     '붙이는 사각템바 12T_30cm\t300*2440*12T\tJA8401-연한오크\t3\t300*1155*12T 6조각',
     '붙이는 사각템바 12T_10cm\t100*2440*12T\tJA8401-연한오크\t1\t100*1155*12T 2조각',
-    '붙이는 마감몰딩\t15*2440*12T\tJA8401-연한오크\t1',
+    '붙이는 마감몰딩\t15*2440*12T\tJA8401-연한오크\t1\t15*1970*12T 1조각',
   ]);
 });
 

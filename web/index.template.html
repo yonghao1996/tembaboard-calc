@@ -653,10 +653,13 @@ footer {
         const plan = moldingPlan(item.width);
         const hint = document.createElement('div');
         hint.className = 'opt-hint';
+        // 몰딩은 길이 재단이 되니 마지막 하나를 얼마로 자르는지까지 적는다
+        const trimmed = plan.bars.filter((b) => b.used < b.stock);
         hint.innerHTML = '몰딩 <b>'
           + plan.items.map((m) => m.length + 'mm × ' + m.count + '개').join(' + ')
-          + '</b> · 가로 ' + item.width + ' 덮고 '
-          + (plan.leftover > 0 ? plan.leftover + ' 남음' : '남는 길이 없음');
+          + '</b> · ' + (trimmed.length > 0
+            ? trimmed.map((b) => b.used).join(', ') + ' 로 재단, ' + plan.leftover + ' 남음'
+            : '재단 없이 가로 ' + item.width + ' 에 딱 맞음');
         fOpt.appendChild(hint);
       }
 
@@ -725,7 +728,7 @@ footer {
       it.segments.map((s) => s.cutLength).join(' + '),
       it.sheets,
       it.strips,
-      it.cutCount,
+      it.cutCount + it.moldingCutCount,
     ]);
     const head = ['사양', '입력 치수', '시공가로', '원장+낱개', '완성세로', '재단길이', '원장', '낱개', '재단횟수'];
     $('#detail').innerHTML =
