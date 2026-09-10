@@ -4,7 +4,7 @@
  * 규칙 출처: CLAUDE.md 2장(계산 로직), 3장(출력 형식).
  */
 import { COLOR_ORDER, findColor, isColorAvailable, storeColorLabel } from './colors.js';
-import { STORE_OPTIONS, ADMIN_PRODUCTS, ADMIN_SIZE_SUFFIX } from './store-options.js';
+import { STORE_OPTIONS, ADMIN_PRODUCTS, ADMIN_SIZE_SUFFIX, ADMIN_MOLDING } from './store-options.js';
 
 /** 모양별 원장 규격. 유효폭 = 실측폭(옆판 겹침 손실 없음). */
 export const SHAPES = {
@@ -382,7 +382,10 @@ export function calculate(inputs) {
     if (!item.molding) continue;
     for (const m of item.molding.items) {
       const key = `${item.color.name}|${m.length}`;
-      const row = moldingMap.get(key) ?? { color: item.color.name, length: m.length, count: 0 };
+      // 몰딩은 규격이 하나뿐이라 색상 + 길이로만 묶는다. 색상 코드를 뽑을 모양은
+      // 이 몰딩을 부른 첫 재단면의 것을 쓴다.
+      const row = moldingMap.get(key)
+        ?? { color: item.color.name, shapeKey: item.shape.key, length: m.length, count: 0 };
       row.count += m.count;
       moldingMap.set(key, row);
     }
@@ -578,29 +581,62 @@ export function formatOrderSummary(result) {
  *   상품명 \t 자재규격 \t 색상 \t 수량(자재 개수) \t 재단내역
  *   붙이는 사각템바 12T_30cm \t 300*2440*12T \t JA8401-연한오크 \t 3 \t 300*1170*12T 6조각
  *
- * 탭으로 나눠서 표에 그대로 붙여넣을 수 있게 한다.
+ * 탭으로 나눠서 표에 그대로 붙여넣을 수 있게 한다. 색상별로 원장 → 낱개 → 몰딩 순.
  * 재단내역의 세로 숫자는 재단 지시서와 같게 **완성 치수**다.
  * 폭은 자재 규격 그대로다. 폭 재단을 하지 않으므로 좁혀 적는 줄은 나오지 않는다.
+ * 마감몰딩은 자르지 않으므로 재단내역 칸 없이 4칸만 낸다.
  */
 export function formatAdminOrder(result) {
-  return result.stocks
-    .map((s) => {
-      const product = ADMIN_PRODUCTS[s.shapeKey];
-      const width = s.kind === STOCK_STRIP ? STRIP_WIDTH : product.boardWidth;
-      const spec = (length) => `${width}*${length}*${product.thickness}`;
-      const detail = result.cuts
-        .filter((c) => c.shapeKey === s.shapeKey && c.color === s.color && c.kind === s.kind)
-        .map((c) => `${spec(c.finishedLength)} ${c.pieces}조각`)
-        .join(' / ');
+  const rows = [];
 
-      return [
+  for (const s of result.stocks) {
+    const product = ADMIN_PRODUCTS[s.shapeKey];
+    const width = s.kind === STOCK_STRIP ? STRIP_WIDTH : product.boardWidth;
+    const spec = (length) => `${width}*${length}*${product.thickness}`;
+    const detail = result.cuts
+      .filter((c) => c.shapeKey === s.shapeKey && c.color === s.color && c.kind === s.kind)
+      .map((c) => `${spec(c.finishedLength)} ${c.pieces}조각`)
+      .join(' / ');
+
+    rows.push({
+      color: s.color,
+      kindRank: s.kind === STOCK_STRIP ? 1 : 0,
+      shape: s.shape,
+      sub: 0,
+      cells: [
         product.name + ADMIN_SIZE_SUFFIX[s.kind],
         spec(s.sheetLength),
         storeColorLabel(s.color, s.shapeKey),
         s.bars,
         detail,
-      ].join('\t');
-    })
+      ],
+    });
+  }
+
+  // 몰딩은 우리가 자르지 않으므로 재단내역 칸 없이 4칸이다.
+  for (const m of result.moldings) {
+    rows.push({
+      color: m.color,
+      kindRank: 2,
+      shape: '',
+      sub: -m.length, // 긴 규격부터
+      cells: [
+        ADMIN_MOLDING.name,
+        `${ADMIN_MOLDING.width}*${m.length}*${ADMIN_MOLDING.thickness}`,
+        storeColorLabel(m.color, m.shapeKey),
+        m.count,
+      ],
+    });
+  }
+
+  return rows
+    .sort((a, b) => (
+      colorRank(a.color) - colorRank(b.color) ||
+      a.kindRank - b.kindRank ||
+      a.shape.localeCompare(b.shape) ||
+      a.sub - b.sub
+    ))
+    .map((r) => r.cells.join('\t'))
     .join('\n');
 }
 

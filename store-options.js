@@ -29,18 +29,22 @@ export const STORE_OPTIONS = {
  * 관리자페이지 주문요약의 상품명·자재 규격.
  * 상품은 자재 폭으로 갈린다. 원장 _30cm / 낱개 _10cm.
  *
- * ⚠️ 확인 전 값이 둘 있다.
- *   - 반달 상품명 '붙이는 반달템바 9T' (샘플에 사각만 있었다)
- *   - 반달 원장의 규격 폭 300 (실측 유효폭은 295. 단가표에서 '300 반달템바' 라 부르는 걸 따랐다)
+ * 반달 원장의 규격 폭은 295 다. 관리자페이지 기록이 `295*2440*9T` 로 나온다.
  * 다르면 이 표만 고친다.
  */
 export const ADMIN_PRODUCTS = {
   square: { name: '붙이는 사각템바 12T', thickness: '12T', boardWidth: 300 },
-  half:   { name: '붙이는 반달템바 9T',  thickness: '9T',  boardWidth: 300 },
+  half:   { name: '붙이는 반달템바 9T',  thickness: '9T',  boardWidth: 295 },
 };
 
 /** 상품명 뒤에 붙는 폭 구분 */
 export const ADMIN_SIZE_SUFFIX = { board: '_30cm', strip: '_10cm' };
+
+/**
+ * 마감몰딩. 모양과 무관하게 규격이 하나뿐이라 두께도 12T 로 고정이다.
+ * 우리가 자르지 않으므로 재단내역 칸 없이 4칸만 낸다.
+ */
+export const ADMIN_MOLDING = { name: '붙이는 마감몰딩', width: 15, thickness: '12T' };
 
 /**
  * 네이버 톡톡 상담 주소. 예: 'https://talk.naver.com/ct/xxxxxx'

@@ -334,7 +334,9 @@ test('몰딩 주문 내역은 색상·규격별로 합산된다', () => {
     { shape: 'half', color: '화이트', width: 1100, height: 1000, useMolding: true },
   ]);
 
-  assert.deepEqual(result.moldings, [{ color: '화이트', length: 1200, count: 2 }]);
+  assert.deepEqual(result.moldings,
+    // shapeKey 는 관리자 주문요약에서 색상 코드를 뽑는 데 쓴다
+    [{ color: '화이트', shapeKey: 'half', length: 1200, count: 2 }]);
   assert.equal(
     formatOrderSummary(result),
     [
@@ -372,6 +374,46 @@ test('관리자 주문요약 — 같은 자재에 길이가 여럿이면 / 로 �
     formatAdminOrder(result),
     '붙이는 사각템바 12T_30cm\t300*2440*12T\tJA8401-연한오크\t5\t'
     + '300*855*12T 3조각 / 300*2415*12T 3조각',
+  );
+});
+
+test('관리자 주문요약 — 마감몰딩도 한 줄로 나온다 (재단내역 칸 없음)', () => {
+  const result = calculate([{
+    shape: 'square', color: '연한오크', width: 1970, height: 1170, useMolding: true,
+  }]);
+
+  assert.deepEqual(formatAdminOrder(result).split('\n'), [
+    '붙이는 사각템바 12T_30cm\t300*2440*12T\tJA8401-연한오크\t3\t300*1155*12T 6조각',
+    '붙이는 사각템바 12T_10cm\t100*2440*12T\tJA8401-연한오크\t1\t100*1155*12T 2조각',
+    '붙이는 마감몰딩\t15*2440*12T\tJA8401-연한오크\t1',
+  ]);
+});
+
+test('관리자 주문요약 — 반달 원장 규격은 295 다', () => {
+  const result = calculate([{ shape: 'half', color: '화이트', width: 1200, height: 2000 }]);
+  const board = formatAdminOrder(result).split('\n')[0];
+
+  assert.ok(board.includes('295*2440*9T'), board);
+  assert.ok(board.endsWith('295*2000*9T 4조각'), board);
+});
+
+test('관리자 주문요약 — 색상별로 원장 → 낱개 → 몰딩 순으로 묶인다', () => {
+  const result = calculate([
+    { shape: 'square', color: '연한오크', width: 1970, height: 1170, useMolding: true },
+    { shape: 'half', color: '화이트', width: 1200, height: 2000, useMolding: true },
+  ]);
+
+  // 화이트가 COLORS 앞자리라 먼저. 각 색 안에서 원장 → 낱개 → 몰딩
+  assert.deepEqual(
+    formatAdminOrder(result).split('\n').map((l) => l.split('\t').slice(0, 2)),
+    [
+      ['붙이는 반달템바 9T_30cm', '295*2440*9T'],
+      ['붙이는 반달템바 9T_10cm', '100*2440*9T'],
+      ['붙이는 마감몰딩', '15*1200*12T'],
+      ['붙이는 사각템바 12T_30cm', '300*2440*12T'],
+      ['붙이는 사각템바 12T_10cm', '100*2440*12T'],
+      ['붙이는 마감몰딩', '15*2440*12T'],
+    ],
   );
 });
 
