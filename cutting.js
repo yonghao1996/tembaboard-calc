@@ -7,10 +7,13 @@ import { COLOR_ORDER, findColor, isColorAvailable, storeColorLabel } from './col
 import { STORE_OPTIONS, ADMIN_PRODUCTS, ADMIN_SIZE_SUFFIX, ADMIN_MOLDING } from './store-options.js';
 import { boardPrice, stripPrice, cuttingPrice } from './pricing.js';
 
-/** 모양별 원장 규격. 유효폭 = 실측폭(옆판 겹침 손실 없음). */
+/**
+ * 모양별 원장 규격. 유효폭 = 실측폭(옆판 겹침 손실 없음).
+ * hasStrips: 100mm 낱개가 있는지. 반달 낱개(100x2440x9T)는 생산 중단 (2026-10-20) → 원장으로만 덮는다.
+ */
 export const SHAPES = {
-  half:   { key: 'half',   label: '반달', effectiveWidth: 295, sheetLength: 2440 },
-  square: { key: 'square', label: '사각', effectiveWidth: 300, sheetLength: 2440 },
+  half:   { key: 'half',   label: '반달', effectiveWidth: 295, sheetLength: 2440, hasStrips: false },
+  square: { key: 'square', label: '사각', effectiveWidth: 300, sheetLength: 2440, hasStrips: true },
 };
 
 /** 예전 표기(원형)로 들어온 입력도 계속 받는다. */
@@ -103,7 +106,8 @@ export function lengthPlan(finished, usableLength) {
 // ⚠️ 폭 재단은 하지 않는다. 세로만 자를 수 있고 가로는 규격(유효폭 / 100) 그대로 나간다.
 // 그래서 시공 폭은 규격 합계로 고정되고, 요청 가로보다 넘치는 만큼이 overhang 이다.
 // 모자라면 벽이 비므로 항상 덮는 쪽(올림)으로 맞춘다. 넘치는 폭은 현장에서 처리한다.
-export function widthPlan(width, effectiveWidth) {
+export function widthPlan(width, effectiveWidth, hasStrips = true) {
+  if (!hasStrips) return planWithBoards(width, effectiveWidth, Math.ceil(width / effectiveWidth));
   let boards = Math.floor(width / effectiveWidth);
   const rest = width - boards * effectiveWidth;
   let strips = rest > 0 ? Math.ceil(rest / STRIP_WIDTH) : 0;
@@ -271,7 +275,7 @@ export function calculateItem(input, boards = null) {
   const finished = finishedLength(height, sides);
   const usableLength = usableSheetLength(shapeSpec, trimEnds);
   const plan = boards === null
-    ? widthPlan(width, shapeSpec.effectiveWidth)
+    ? widthPlan(width, shapeSpec.effectiveWidth, shapeSpec.hasStrips)
     : planWithBoards(width, shapeSpec.effectiveWidth, boards);
   const pieces = plan.boards + plan.strips;
 
@@ -430,7 +434,8 @@ function chooseBoards(items) {
       const base = items[i].widthPlan.boards;
       const next = new Map();
       for (const st of states.values()) {
-        for (let b = 0; b <= Math.ceil(width / W); b++) {
+        // 낱개가 없는 모양(반달)은 원장으로만 덮는다
+        for (let b = first.shape.hasStrips ? 0 : Math.ceil(width / W); b <= Math.ceil(width / W); b++) {
           const p = planWithBoards(width, W, b);
           const tot = [...st.tot];
           for (const [L, k] of mult[n]) { tot[2 * L] += k * p.boards; tot[2 * L + 1] += k * p.strips; }

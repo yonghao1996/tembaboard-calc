@@ -41,13 +41,13 @@ test('TC-1 반달 / 화이트 / 1200 × 2000 / 몰딩 O / 끝단정리 X', () =>
   assert.equal(item.finishedLength, 1985, '완성 치수 = 2000 - 15');
   assert.equal(item.cutLength, 1990, '재단 길이 = 완성 1985 + 재단손실 5');
   assert.deepEqual(item.widthPlan,
-    { boards: 4, strips: 1, covered: 1280, overhang: 80 },
-    '가로 1200 = 295 × 4 + 100 × 1');
+    { boards: 5, strips: 0, covered: 1475, overhang: 275 },
+    '가로 1200 = 295 × 5 (반달 낱개는 생산 중단이라 원장으로만 덮는다)');
   assert.equal(item.usableLength, 2440, '끝단정리 X → 2440');
-  assert.equal(item.piecesPerSheet, 1, '원장당 = floor(2460 / 2010)');
-  assert.equal(item.sheets, 4, '원장 ceil(4 / 1)');
-  assert.equal(item.strips, 1, '낱개 ceil(1 / 1)');
-  assert.equal(item.cutCount, 5, '재단 횟수 = 조각 수 4 + 1');
+  assert.equal(item.piecesPerSheet, 1, '원장당 = floor(2440 / 1990)');
+  assert.equal(item.sheets, 5, '원장 ceil(5 / 1)');
+  assert.equal(item.strips, 0, '반달 낱개 없음');
+  assert.equal(item.cutCount, 5, '재단 횟수 = 조각 수 5');
   assert.deepEqual(item.molding.items, [{ length: 1200, count: 1 }], '몰딩 = 1200 × 1개');
 
   const result = calculate([{
@@ -55,15 +55,14 @@ test('TC-1 반달 / 화이트 / 1200 × 2000 / 몰딩 O / 끝단정리 X', () =>
   }]);
   assert.equal(
     formatCuttingSheet(result),
-    ['반달-화이트 : 1985 - 4조각', '반달-화이트 100폭 : 1985 - 1조각', '마감몰딩-화이트 (상단) : 1200 - 1개'].join('\n'),
+    ['반달-화이트 : 1985 - 5조각', '마감몰딩-화이트 (상단) : 1200 - 1개'].join('\n'),
   );
   assert.equal(
     formatOrderSummary(result),
     [
-      '템바보드 타입 / 반달, 색상 / JA3011-화이트 : 4개',
+      '템바보드 타입 / 반달, 색상 / JA3011-화이트 : 5개',
       '재단 필요해요 > 톡톡으로 말씀주세요 : 5개',
       '마감몰딩 1200mm 기준 : 1개',
-      '반달템바 (100x2440x9T) : 1개',
     ].join('\n'),
   );
 });
@@ -116,8 +115,8 @@ test('TC-4 사각 / 화이트 / 1200 × 2000 / 몰딩 O — 유효폭 차이', (
     { boards: 4, strips: 0, covered: 1200, overhang: 0 },
     '사각 1200 = 300 × 4, 딱 떨어져서 낱개 없음');
   assert.deepEqual(half.widthPlan,
-    { boards: 4, strips: 1, covered: 1280, overhang: 80 },
-    '반달 1200 = 295 × 4 + 100 × 1');
+    { boards: 5, strips: 0, covered: 1475, overhang: 275 },
+    '반달 1200 = 295 × 5 (반달 낱개 없음)');
 });
 
 // --- TC-5 (합산) ------------------------------------------------------------
@@ -127,12 +126,12 @@ test('TC-5 동일 모양·색상·재단길이 2건은 한 줄로 합산', () =>
     { shape: 'half', color: '화이트', width: 600,  height: 2000, useMolding: true },
   ]);
 
-  // 원장 4 + 2 = 6조각, 낱개 1 + 1 = 2조각
+  // 원장 5 + 3 = 8조각 (반달은 낱개 없이 원장으로만)
   assert.equal(
     formatCuttingSheet(result),
-    ['반달-화이트 : 1985 - 6조각', '반달-화이트 100폭 : 1985 - 2조각', '마감몰딩-화이트 (상단) : 1200 - 2개'].join('\n'),
+    ['반달-화이트 : 1985 - 8조각', '마감몰딩-화이트 (상단) : 1200 - 2개'].join('\n'),
   );
-  assert.deepEqual(result.boards, [{ shape: '반달', shapeKey: 'half', color: '화이트', sheets: 6 }]);
+  assert.deepEqual(result.boards, [{ shape: '반달', shapeKey: 'half', color: '화이트', sheets: 8 }]);
 });
 
 test('TC-5 보강: 사양이 다르면 줄을 나눈다', () => {
@@ -147,8 +146,7 @@ test('TC-5 보강: 사양이 다르면 줄을 나눈다', () => {
     [
       '사각-화이트 : 1200 - 2조각',      // 900 = 300 × 2 + 100 × 3 이 원장 3장보다 싸다
       '사각-화이트 100폭 : 1200 - 3조각',
-      '반달-진한티크 : 1985 - 4조각',
-      '반달-진한티크 100폭 : 1985 - 1조각',
+      '반달-진한티크 : 1985 - 5조각',
       '마감몰딩-진한티크 (상단) : 1200 - 1개',
     ].join('\n'),
   );
@@ -278,13 +276,12 @@ test('주문 요약은 스토어 옵션명 그대로, 스토어 옵션 순서로
     formatOrderSummary(result),
     [
       // 정렬은 색상별 — 카키가 밝은오크보다 앞
-      // 반달 카키 2500 → 원장 8 + 낱개 2, 원장당 floor(2460/1010) = 2
-      '템바보드 타입 / 반달, 색상 / JA2210-카키 : 4개',
+      // 반달 카키 2500 → 원장 9 (반달 낱개 없음), 원장당 floor(2440/1005) = 2 → 5장
+      '템바보드 타입 / 반달, 색상 / JA2210-카키 : 5개',
       '템바보드 타입 / 사각, 색상 / JA6W2-밝은오크 : 4개',
-      '재단 필요해요 > 톡톡으로 말씀주세요 : 14개', // 조각 수: 사각 4 + 반달 10
+      '재단 필요해요 > 톡톡으로 말씀주세요 : 13개', // 조각 수: 사각 4 + 반달 9
       '마감몰딩 2440mm 기준 : 1개',
       '마감몰딩 1200mm 기준 : 2개 (카키 1, 밝은오크 1)',
-      '반달템바 (100x2440x9T) : 1개',
     ].join('\n'),
   );
 });
@@ -345,12 +342,11 @@ test('몰딩 주문 내역은 색상·규격별로 합산된다', () => {
   assert.equal(
     formatOrderSummary(result),
     [
-      // 1200×2000 → 원장 4 + 낱개 1
-      // 1100×1000 → 남는 폭 215 라 낱개 3개 대신 원장 1장 → 원장 4장, 원장당 2개 → 2개
-      '템바보드 타입 / 반달, 색상 / JA3011-화이트 : 6개',
+      // 1200×2000 → 원장 5, 원장당 1개 → 5장
+      // 1100×1000 → 원장 4, 원장당 2개 → 2장
+      '템바보드 타입 / 반달, 색상 / JA3011-화이트 : 7개',
       '재단 필요해요 > 톡톡으로 말씀주세요 : 9개', // 조각 수 5 + 4
       '마감몰딩 1200mm 기준 : 2개',
-      '반달템바 (100x2440x9T) : 1개',
     ].join('\n'),
   );
 });
@@ -400,7 +396,7 @@ test('관리자 주문요약 — 반달 원장 규격은 295 다', () => {
   const board = formatAdminOrder(result).split('\n')[0];
 
   assert.ok(board.includes('295*2440*9T'), board);
-  assert.ok(board.endsWith('295*2000*9T 4조각'), board);
+  assert.ok(board.endsWith('295*2000*9T 5조각'), board);
 });
 
 test('관리자 주문요약 — 색상별로 원장 → 낱개 → 몰딩 순으로 묶인다', () => {
@@ -413,8 +409,7 @@ test('관리자 주문요약 — 색상별로 원장 → 낱개 → 몰딩 순�
   assert.deepEqual(
     formatAdminOrder(result).split('\n').map((l) => l.split('\t').slice(0, 2)),
     [
-      ['붙이는 반달템바 9T_30cm', '295*2440*9T'],
-      ['붙이는 반달템바 9T_10cm', '100*2440*9T'],
+      ['붙이는 반달템바 9T_30cm', '295*2440*9T'], // 반달 낱개는 생산 중단이라 _10cm 줄이 없다
       ['붙이는 마감몰딩', '15*1200*12T'],
       ['붙이는 사각템바 12T_30cm', '300*2440*12T'],
       ['붙이는 사각템바 12T_10cm', '100*2440*12T'],
@@ -444,7 +439,7 @@ test('세로 자투리 — 가득 채운 자재와 마지막 자재를 나눠 �
   assert.deepEqual(sheetTails(8, 4, 2440, 610), []);
 });
 
-test('TC-1 자투리 — 원장/낱개를 나눠 적는다', () => {
+test('TC-1 자투리 — 원장 자투리를 적는다', () => {
   const result = calculate([{
     shape: 'half', color: '화이트', width: 1200, height: 2000, useMolding: true, trimEnds: false,
   }]);
@@ -452,8 +447,7 @@ test('TC-1 자투리 — 원장/낱개를 나눠 적는다', () => {
   assert.equal(
     formatLeftovers(result),
     [
-      '반달-화이트 : 가로 295 X 세로 450, 4개 (세로 자르고 남은 부분)',
-      '반달-화이트 : 가로 100 X 세로 450, 1개 (세로 자르고 남은 부분)',
+      '반달-화이트 : 가로 295 X 세로 450, 5개 (세로 자르고 남은 부분)',
       '마감몰딩-화이트 : 남는 길이 없음',
     ].join('\n'),
   );
@@ -500,21 +494,26 @@ test('원장/낱개 배치는 주문 전체 금액이 가장 싼 쪽을 고른�
   // 원장 2조각이 한 장에 들어가면 원장
   assert.deepEqual(plan([sq(600, 1200)]), [[2, 0]]);
 
-  // 기본 배치(widthPlan)와 금액이 같으면 기본 배치 그대로
-  const [tc1] = calculate([{ shape: 'half', color: '화이트', width: 1200, height: 2000, useMolding: true }]).items;
-  assert.deepEqual(tc1.widthPlan, { boards: 4, strips: 1, covered: 1280, overhang: 80 });
+  // 원장당 1개면 남는 폭은 낱개 1개(16,000)가 원장 1장(45,000)보다 싸다 = 기본 배치
+  assert.deepEqual(calculate([sq(1270, 2000)]).items[0].widthPlan,
+    { boards: 4, strips: 1, covered: 1300, overhang: 30 });
+
+  // 반달은 낱개가 생산 중단이라 원장으로만 덮는다
+  const [half] = calculate([{ shape: 'half', color: '화이트', width: 1200, height: 800 }]).items;
+  assert.deepEqual(half.widthPlan, { boards: 5, strips: 0, covered: 1475, overhang: 275 });
+  assert.equal(calculate([{ shape: 'half', color: '화이트', width: 100, height: 800 }]).stripOrders.length, 0);
 });
 
 test('원장/낱개는 재단면끼리 나눠 쓰므로 주문 전체로 고른다', () => {
-  // 반달 295 × 1200 두 면: 따로 보면 낱개 3조각(2개)이 싸 보여도, 합치면 원장 1장에 2조각
+  // 사각 300 × 1200 두 면: 따로 보면 낱개 3조각(2개)이 싸 보여도, 합치면 원장 1장에 2조각
   const two = calculate([
-    { shape: 'half', color: '화이트', width: 295, height: 1200 },
-    { shape: 'half', color: '화이트', width: 295, height: 1200 },
+    { shape: 'square', color: '화이트', width: 300, height: 1200 },
+    { shape: 'square', color: '화이트', width: 300, height: 1200 },
   ]);
   assert.deepEqual(two.boards.map((b) => b.sheets), [1]);
   assert.equal(two.stripOrders.length, 0);
-  // 하나만 있으면 낱개 3조각(낱개 2개 32,000 + 재단)이 원장 1장(40,500)보다 싸다
-  const [one] = calculate([{ shape: 'half', color: '화이트', width: 295, height: 1200 }]).items;
+  // 하나만 있으면 낱개 3조각(낱개 2개 32,000 + 재단)이 원장 1장(45,000)보다 싸다
+  const [one] = calculate([{ shape: 'square', color: '화이트', width: 300, height: 1200 }]).items;
   assert.deepEqual([one.widthPlan.boards, one.widthPlan.strips], [0, 3]);
 });
 
@@ -628,17 +627,17 @@ test('끝단정리 여부가 다르면 자재당 개수를 따로 계산하고 �
 // --- 4. 도면 데이터 ---------------------------------------------------------
 test('벽면 배치도 — 열 폭 합이 시공 가로, 행 길이 합이 세로', () => {
   const result = calculate([{
-    shape: 'half', color: '화이트', width: 1200, height: 2000, useMolding: true,
+    shape: 'square', color: '화이트', width: 1270, height: 2000, useMolding: true,
   }]);
   const wall = result.walls[0];
 
   assert.deepEqual(wall.columns.map((c) => [c.kind, c.width]), [
-    ['board', 295], ['board', 295], ['board', 295], ['board', 295],
+    ['board', 300], ['board', 300], ['board', 300], ['board', 300],
     ['strip', 100], // 폭 재단을 안 하므로 낱개도 100 그대로
   ]);
-  assert.equal(wall.columns.reduce((n, c) => n + c.width, 0), 1280, '열 폭 합 = 시공 가로');
-  assert.equal(wall.covered, 1280);
-  assert.equal(wall.overhang, 80, '요청 1200 보다 80 넘친다');
+  assert.equal(wall.columns.reduce((n, c) => n + c.width, 0), 1300, '열 폭 합 = 시공 가로');
+  assert.equal(wall.covered, 1300);
+  assert.equal(wall.overhang, 30, '요청 1270 보다 30 넘친다');
 
   assert.deepEqual(wall.rows, [
     { kind: 'molding', length: 15 },
@@ -670,7 +669,7 @@ test('재단 도면 — 자재 1개에 들어가는 조각과 남는 길이', ()
 
 test('재단 도면 — 같은 모양 자재는 묶고 개수는 소요 수량과 맞는다', () => {
   const result = calculate([{
-    shape: 'half', color: '화이트', width: 1200, height: 2000, useMolding: true,
+    shape: 'square', color: '화이트', width: 1270, height: 2000, useMolding: true,
   }]);
 
   assert.deepEqual(result.barGroups.map((g) => [g.kind, g.count, g.tail, g.bars]), [
@@ -701,15 +700,16 @@ test('재단 도면 묶음에 모양 키가 들어 있다 (색 조회용)', () =
 
 test('자투리 목록 — 재단 후 손에 남는 조각을 한 곳에 모은다', () => {
   const result = calculate([{
-    shape: 'half', color: '화이트', width: 1200, height: 4000, useMolding: true,
+    shape: 'square', color: '화이트', width: 1270, height: 4000, useMolding: true,
   }]);
 
   assert.deepEqual(
     leftoverPieces(result).map((p) => [p.shape, p.width, p.length, p.count, p.from]),
     [
       // 완성 3985 = 2435 + 1550 → 재단 2440 + 1555
-      ['반달', 295, 885, 4, 'cut'],   // 1555 조각을 뽑은 원장 4장, 2440 - 1555
-      ['반달', 100, 885, 1, 'cut'],   // 낱개에서도 같은 길이가 남는다
+      ['사각', 300, 885, 4, 'cut'],   // 1555 조각을 뽑은 원장 4장, 2440 - 1555
+      ['사각', 100, 885, 1, 'cut'],   // 낱개에서도 같은 길이가 남는다
+      ['마감몰딩', 15, 1170, 1, 'molding'], // 몰딩 2440 - 1270
     ],
     '큰 조각부터 (넓이 기준)',
   );

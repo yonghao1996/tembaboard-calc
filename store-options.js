@@ -20,7 +20,6 @@ export const STORE_OPTIONS = {
   },
   /** 100mm 낱개 템바. 색상은 원장 색상을 그대로 따라간다. */
   stripByShape: {
-    half: '반달템바 (100x2440x9T)',
     square: '사각템바 (100x2440x12T)',
   },
 };

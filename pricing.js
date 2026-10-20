@@ -15,7 +15,7 @@ export const PRICES = {
   /** 100mm 낱개 템바 */
   strip: {
     square: 16000,
-    half: 16000,
+    // 반달 100x2440x9T 는 생산 중단 (2026-10-20)
   },
   /** 마감몰딩 */
   moldingByLength: {

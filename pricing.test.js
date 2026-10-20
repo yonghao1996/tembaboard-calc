@@ -18,7 +18,7 @@ test('원장 단가는 색상과 무관하다', () => {
 
 test('낱개 템바 / 마감몰딩 단가', () => {
   assert.equal(stripPrice('square'), 16000);
-  assert.equal(stripPrice('half'), 16000);
+  assert.equal(stripPrice('half'), null, '반달 100x2440x9T 는 생산 중단');
   assert.equal(moldingPrice(2440), 8000);
   assert.equal(moldingPrice(1200), 4000);
   assert.equal(cuttingPrice(), 500, '재단 1회당');
@@ -31,12 +31,11 @@ test('TC-1 견적 — 반달 화이트 1200 × 2000 몰딩 O', () => {
   const q = quote(result);
 
   assert.deepEqual(q.lines.map((l) => [l.label, l.count, l.amount]), [
-    ['템바보드 타입 / 반달, 색상 / JA3011-화이트', 4, 162000], // 4 × 40,500
+    ['템바보드 타입 / 반달, 색상 / JA3011-화이트', 5, 202500], // 5 × 40,500 (반달 낱개 없음)
     ['재단 필요해요 > 톡톡으로 말씀주세요', 5, 2500],                                // 5 × 500
     ['마감몰딩 1200mm 기준', 1, 4000],
-    ['반달템바 (100x2440x9T)', 1, 16000],
   ]);
-  assert.equal(q.total, 184500);
+  assert.equal(q.total, 209000);
   assert.equal(q.unknown.length, 0, '미정 단가 없음');
 });
 
