@@ -311,6 +311,33 @@ const ADMIN_MOLDING = { name: '붙이는 마감몰딩', width: 15, thickness: '1
 const TALK_URL = 'https://talk.naver.com/w48val'; // 아르빙
 
 /**
+ * 검수 링크. 톡톡으로 보내는 지시서 끝에 붙여, 사장님이 누르면 고객 입력 그대로 계산기가 열린다.
+ * 지시서만으로는 가로·낱개 배치를 거꾸로 알 수 없어서 입력 자체를 싣는다.
+ * 형식: 재단면을 `~` 로 잇고, 재단면 하나는 `모양.색상.가로x세로.옵션`
+ *   모양 h(반달) / s(사각), 옵션 t(상단 몰딩) b(하단 몰딩) e(끝단 정리)
+ *   예) s.화이트.1200x2000.tb~h.카키.590x800.
+ */
+function encodeItems(items) {
+  return items.map((it) => [
+    it.shape === 'half' ? 'h' : 's', it.color, it.width + 'x' + it.height,
+    (it.useMolding ? 't' : '') + (it.bottomMolding ? 'b' : '') + (it.trimEnds ? 'e' : ''),
+  ].join('.')).join('~');
+}
+
+/** 깨진 조각은 버린다. 하나도 못 읽으면 빈 배열. */
+function decodeItems(text) {
+  return String(text).split('~').map((part) => {
+    const [s, color, size, flags = ''] = part.split('.');
+    const m = /^(\d+)x(\d+)$/.exec(size || '');
+    if (!m || !color || (s !== 'h' && s !== 's')) return null;
+    return {
+      shape: s === 'h' ? 'half' : 'square', color, width: Number(m[1]), height: Number(m[2]),
+      useMolding: flags.includes('t'), bottomMolding: flags.includes('b'), trimEnds: flags.includes('e'),
+    };
+  }).filter(Boolean);
+}
+
+/**
  * 템바보드 재단 계산 로직.
  * UI 코드 없음. 순수 계산 + 출력 텍스트 포맷만 담당한다.
  * 규칙 출처: CLAUDE.md 2장(계산 로직), 3장(출력 형식).

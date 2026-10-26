@@ -6,8 +6,5 @@
   "description": "템바보드 재단 계산기 — 계산 로직",
   "scripts": {
     "test": "node --test"
-  },
-  "dependencies": {
-    "bcryptjs": "^2.4.3"
   }
 }

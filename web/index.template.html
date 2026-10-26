@@ -1237,7 +1237,12 @@ footer {
       showManualCopy(lastText.cut, '톡톡 주소가 설정되지 않았습니다 (store-options.js)');
       return;
     }
-    const text = lastText.cut;
+    // 검수 링크: 사장님이 누르면 같은 입력으로 계산기가 열린다. 파일로 연 페이지면 링크가 안 열리니 뺀다.
+    const valid = items.filter((i) => validateItem(i).length === 0);
+    const link = /^https?:$/.test(location.protocol)
+      ? '\n\n검수: ' + location.origin + location.pathname + '#' + encodeURIComponent(encodeItems(valid))
+      : '';
+    const text = lastText.cut && lastText.cut + link;
     if (!text) {
       e.preventDefault();
       flash('치수를 먼저 입력하세요', 1800);
@@ -1270,6 +1275,14 @@ footer {
     };
   });
 
+  // 검수 링크로 열렸으면 고객 입력을 그대로 채운다
+  function loadFromHash() {
+    let fromLink = [];
+    try { fromLink = decodeItems(decodeURIComponent(location.hash.slice(1))); } catch (e) { /* 깨진 링크 */ }
+    if (fromLink.length) items = fromLink;
+  }
+  window.addEventListener('hashchange', () => { loadFromHash(); render(); });
+  loadFromHash();
   render();
 })();
 </script>
