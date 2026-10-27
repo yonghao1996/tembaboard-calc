@@ -457,6 +457,7 @@ footer {
               </span>
             </div>
             <pre class="out" id="out-cut"></pre>
+            <p class="note">톡톡으로 보내기를 누르면 지시서가 복사되고 톡톡 창이 열립니다. 대화창에 <b>붙여넣기</b>(⌘V · Ctrl+V · 길게 눌러 붙여넣기) 해서 보내 주세요.</p>
           </div>
           <div class="out-block">
             <div class="out-label"><span>자투리</span><button class="btn" data-copy="left">복사</button></div>
@@ -1193,7 +1194,11 @@ footer {
         return true;
       }
     } catch (e) { /* 다음 방법으로 */ }
+    return execCopy(text);
+  }
 
+  /** 동기 복사. 클릭 직후 새 창으로 포커스가 넘어가기 전에 끝내야 할 때 쓴다. */
+  function execCopy(text) {
     try {
       const ta = document.createElement('textarea');
       ta.value = text;
@@ -1205,10 +1210,8 @@ footer {
       ta.setSelectionRange(0, ta.value.length);
       const ok = document.execCommand('copy');
       document.body.removeChild(ta);
-      if (ok) return true;
-    } catch (e) { /* 수동 복사로 */ }
-
-    return false;
+      return ok;
+    } catch (e) { return false; }
   }
 
   function showManualCopy(text, title) {
@@ -1248,8 +1251,9 @@ footer {
       flash('치수를 먼저 입력하세요', 1800);
       return;
     }
-    // preventDefault 하지 않는다 → 링크가 톡톡 창을 연다
-    const copied = await copyText(text);
+    // preventDefault 하지 않는다 → 링크가 톡톡 창을 연다.
+    // 비동기 클립보드는 새 탭으로 포커스가 넘어가면 실패하니, 동기 복사를 먼저 한다.
+    const copied = execCopy(text) || await copyText(text);
     if (copied) flash('복사됨 · 톡톡에 붙여넣기', 2400);
     else showManualCopy(text, '복사가 차단됐습니다');
   });
