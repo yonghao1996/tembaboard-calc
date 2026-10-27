@@ -1845,6 +1845,9 @@ function formatQuote(result) {
     // 검수 링크: 고객이 어느 복사 버튼으로 보내든 붙는다. 사장님이 누르면 같은 입력으로 계산기가 열린다.
     // 화면 글자에는 넣지 않고 복사할 때만 붙인다.
     const link = '\n\n검수: ' + CALC_URL + '#' + encodeURIComponent(encodeItems(valid));
+    // 주문 요약·재단 지시서 복사(톡톡으로 보내기 포함)는 둘을 묶어 보낸다. 무엇을 샀는지와 어떻게 자를지를 한 번에 대조하려고.
+    const both = '[주문 요약]\n' + lastText.sum + '\n\n[재단 지시서]\n' + lastText.cut;
+    lastText.sum = lastText.cut = both;
     ['sum', 'cut', 'full', 'quote'].forEach((k) => { lastText[k] += link; });
 
     const rows = result.items.map((it) => [
