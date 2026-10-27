@@ -734,6 +734,13 @@ footer {
     adminEl.textContent = lastText.admin;
     [sumEl, cutEl, leftEl, adminEl].forEach((el) => el.classList.remove('empty'));
 
+    // 검수 링크: 고객이 어느 복사 버튼으로 보내든 붙는다. 사장님이 누르면 같은 입력으로 계산기가 열린다.
+    // 화면 글자에는 넣지 않고 복사할 때만 붙인다. 파일로 연 페이지면 링크가 안 열리니 뺀다.
+    if (/^https?:$/.test(location.protocol)) {
+      const link = '\n\n검수: ' + location.origin + location.pathname + '#' + encodeURIComponent(encodeItems(valid));
+      ['sum', 'cut', 'full', 'quote'].forEach((k) => { lastText[k] += link; });
+    }
+
     const rows = result.items.map((it) => [
       it.shape.label + ' / ' + storeColorLabel(it.color.name, it.shape.key),
       it.width + ' × ' + it.height,
@@ -1237,12 +1244,7 @@ footer {
       showManualCopy(lastText.cut, '톡톡 주소가 설정되지 않았습니다 (store-options.js)');
       return;
     }
-    // 검수 링크: 사장님이 누르면 같은 입력으로 계산기가 열린다. 파일로 연 페이지면 링크가 안 열리니 뺀다.
-    const valid = items.filter((i) => validateItem(i).length === 0);
-    const link = /^https?:$/.test(location.protocol)
-      ? '\n\n검수: ' + location.origin + location.pathname + '#' + encodeURIComponent(encodeItems(valid))
-      : '';
-    const text = lastText.cut && lastText.cut + link;
+    const text = lastText.cut;
     if (!text) {
       e.preventDefault();
       flash('치수를 먼저 입력하세요', 1800);
