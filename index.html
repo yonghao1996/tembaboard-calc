@@ -393,6 +393,19 @@ svg.dwg .waste { fill: var(--bad-soft); }
   padding: 10px 12px;
 }
 
+/* --- 톡톡 보내기 안내 --- */
+#talk-guide {
+  max-width: 420px;
+  padding: 22px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+#talk-guide::backdrop { background: rgba(0, 0, 0, 0.35); }
+#talk-guide p { margin: 8px 0 18px; line-height: 1.7; }
+
 footer {
   font-family: var(--mono); font-size: 11.5px; color: var(--muted);
   border-top: 1px solid var(--line); padding-top: 14px;
@@ -465,7 +478,7 @@ footer {
               </span>
             </div>
             <pre class="out" id="out-cut"></pre>
-            <p class="note">톡톡으로 보내기를 누르면 지시서가 복사되고 톡톡 창이 열립니다. 대화창에 <b>붙여넣기</b>(⌘V · Ctrl+V · 길게 눌러 붙여넣기) 해서 보내 주세요.</p>
+            <p class="note">톡톡으로 보내기를 누르면 지시서가 복사됩니다. 안내 창에서 톡톡을 열고 대화창에 <b>붙여넣기</b>(⌘V · Ctrl+V · 길게 눌러 붙여넣기) 해서 보내 주세요.</p>
           </div>
           <div class="out-block">
             <div class="out-label"><span>자투리</span><button class="btn" data-copy="left">복사</button></div>
@@ -522,6 +535,16 @@ footer {
     <p class="note">아래 내용이 선택돼 있습니다. <b>⌘C</b> (윈도우는 <b>Ctrl+C</b>) 로 복사하세요.</p>
     <textarea id="manual-copy-text" readonly rows="10"></textarea>
   </div>
+
+  <dialog id="talk-guide">
+    <strong>재단 지시서가 복사됐어요</strong>
+    <p>톡톡 대화창에 <b>붙여넣기</b> 한 뒤 보내 주세요.<br>
+      컴퓨터 <b>⌘V</b> (윈도우 <b>Ctrl+V</b>) · 휴대폰은 입력칸을 <b>길게 눌러 붙여넣기</b></p>
+    <div class="btn-row">
+      <a class="btn solid" id="talk-guide-open" target="_blank" rel="noopener">톡톡 열기</a>
+      <button class="btn" id="talk-guide-close">닫기</button>
+    </div>
+  </dialog>
 
   <footer>
     <span>재단 지시서·도면 숫자 = 완성 치수. 톱날 손실은 조각마다 5mm(재단손실)로만 셉니다. 원장 점유 길이(완성 +5)는 계산 상세 표의 재단길이 칸에서 확인. 100폭 = 낱개 템바.</span>
@@ -2313,8 +2336,8 @@ function formatQuote(result) {
     $('#manual-copy-title').textContent = '복사가 차단됐습니다';
   };
 
-  // 톡톡은 링크로 메시지를 미리 채울 수 없다.
-  // 창 열기는 <a> 가 맡는다(링크 클릭은 팝업 차단에 걸리지 않는다). 코드는 복사만 한다.
+  // 톡톡은 링크로 메시지를 미리 채울 수 없다. 그래서 복사한 뒤 붙여넣으라는 안내를 먼저 띄우고,
+  // 톡톡은 안내 창의 '톡톡 열기'(<a>)로 연다. 바로 열면 새 창에 가려 안내를 못 본다.
   $('#send-talk').addEventListener('click', async (e) => {
     const btn = $('#send-talk');
     const label = btn.dataset.label || btn.textContent;
@@ -2335,12 +2358,14 @@ function formatQuote(result) {
       flash('치수를 먼저 입력하세요', 1800);
       return;
     }
-    // preventDefault 하지 않는다 → 링크가 톡톡 창을 연다.
-    // 비동기 클립보드는 새 탭으로 포커스가 넘어가면 실패하니, 동기 복사를 먼저 한다.
+    e.preventDefault();
     const copied = execCopy(text) || await copyText(text);
-    if (copied) flash('복사됨 · 톡톡에 붙여넣기', 2400);
+    if (copied) $('#talk-guide').showModal();
     else showManualCopy(text, '복사가 차단됐습니다');
   });
+  $('#talk-guide-open').href = TALK_URL || '#';
+  $('#talk-guide-open').addEventListener('click', () => $('#talk-guide').close());
+  $('#talk-guide-close').onclick = () => $('#talk-guide').close();
 
   document.querySelectorAll('[data-copy]').forEach((btn) => {
     btn.onclick = async () => {
