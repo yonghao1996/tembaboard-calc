@@ -53,6 +53,9 @@ export const ADMIN_MOLDING = { name: '붙이는 마감몰딩', width: 15, thickn
  */
 export const TALK_URL = 'https://talk.naver.com/w48val'; // 아르빙
 
+/** 검수 링크가 여는 계산기 주소. 어느 사본(아티팩트·로컬 파일)에서 복사해도 이 주소로 연다. */
+export const CALC_URL = 'https://yonghao1996.github.io/tembaboard-calc/';
+
 /**
  * 검수 링크. 톡톡으로 보내는 지시서 끝에 붙여, 사장님이 누르면 고객 입력 그대로 계산기가 열린다.
  * 지시서만으로는 가로·낱개 배치를 거꾸로 알 수 없어서 입력 자체를 싣는다.
