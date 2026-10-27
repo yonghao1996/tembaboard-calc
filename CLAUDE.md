@@ -494,7 +494,7 @@ TC-2와 동일하되 끝단정리 O → 원장당 floor(2420/805) = 3 → 소요
 
 **배포는 GitHub Pages** (https://yonghao1996.github.io/tembaboard-calc/). main 에 푸시하면
 루트가 그대로 서빙된다. Vercel 은 쓰지 않는다 (2026-10-27).
-루트의 `.nojekyll` 을 지우지 말 것. 없으면 Jekyll 빌드가 실패해 Pages 가 8/21 화면에 멈춰 있었다.
+Pages 설정의 배포 폴더는 `/ (root)`. `/docs` 로 돼 있어 8/21 부터 빌드가 실패해 화면이 멈춰 있었다 (2026-10-27 수정). `.nojekyll` 은 Jekyll 을 건너뛰게 둔 것.
 푸시 뒤에는 Pages 화면에 바뀐 코드가 들어갔는지 확인한다.
 
 원본은 `web/index.template.html` 이고 `/*__BUNDLE__*/` 자리에 `colors.js` 등이 통째로 주입된다.
