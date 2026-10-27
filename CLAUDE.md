@@ -494,7 +494,9 @@ TC-2와 동일하되 끝단정리 O → 원장당 floor(2420/805) = 3 → 소요
 커밋한다. 빌드를 건너뛰면 커밋은 돼도 배포된 화면은 안 바뀐다.
 
 **배포는 GitHub Pages** (https://yonghao1996.github.io/tembaboard-calc/). main 에 푸시하면
-루트가 그대로 서빙된다. Vercel 은 쓰지 않는다 (2026-10-27).
+루트가 그대로 서빙된다. 계산기에는 Vercel 을 쓰지 않는다 (2026-10-27).
+**예외: 미리보기(`preview.html`)는 Vercel 에만 남긴다.** `/api/preview` 서버 함수가 필요해서다
+(10장). Pages 로 열린 미리보기는 `https://tembaboard-calc.vercel.app/preview.html` 로 넘긴다.
 루트의 `.nojekyll` 을 지우지 말 것. 없으면 Jekyll 빌드가 실패해 Pages 가 8/21 화면에 멈춰 있었다.
 푸시 뒤에는 Pages 화면에 바뀐 코드가 들어갔는지 확인한다.
 

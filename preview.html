@@ -170,6 +170,11 @@ footer {
 </div>
 
 <script>
+// 미리보기는 /api/preview 서버 함수가 있어야 돈다. 그 함수는 Vercel 에만 있으니 Pages 로 열면 넘긴다.
+if (location.hostname.endsWith('github.io')) location.replace('https://tembaboard-calc.vercel.app/preview.html');
+</script>
+
+<script>
 /* ===== 색상·규격 데이터 (build.js 가 colors.js 등을 그대로 주입) ===== */
 /**
  * 색상 목록. 스토어 제품 옵션 기준.
