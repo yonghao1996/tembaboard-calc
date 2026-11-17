@@ -82,12 +82,16 @@ export function cutLength(height, moldings) {
 // 세로가 원장 유효길이를 넘으면 한 장으로 못 뽑는다. 길이를 나눠서 이어 붙인다.
 // 조각 하나가 가질 수 있는 최대 완성 길이 = 유효길이 - 재단손실.
 // 이음을 최소로 하려고 앞 조각부터 최대로 채우고 마지막 조각이 나머지를 갖는다.
-export function lengthPlan(finished, usableLength) {
+// wholeLength(끝단정리 X 일 때 원장 길이 2440)를 주면 원장째(자르지 않고) 쓸 수 있는 만큼 먼저 쓴다.
+// 예) 3000 → 2440(원장째) + 560,  4880 → 2440 + 2440
+export function lengthPlan(finished, usableLength, wholeLength = null) {
   const max = usableLength - CUT_LOSS;
-  const count = Math.max(1, Math.ceil(finished / max));
   const segments = [];
   let left = finished;
-  for (let i = 0; i < count; i++) {
+  if (wholeLength) {
+    while (left >= wholeLength) { segments.push(wholeLength); left -= wholeLength; }
+  }
+  while (left > 0) {
     const seg = Math.min(max, left);
     segments.push(seg);
     left -= seg;
@@ -279,10 +283,11 @@ export function calculateItem(input, boards = null) {
     : planWithBoards(width, shapeSpec.effectiveWidth, boards);
   const pieces = plan.boards + plan.strips;
 
-  // 완성 세로가 원장 길이 그대로(2440, 끝단정리 X)면 자르지 않고 원장째 나간다. 재단손실 5mm 도 없다.
-  const uncut = !trimEnds && finished === shapeSpec.sheetLength;
   // 세로가 유효길이를 넘으면 여러 조각으로 나눠 이어 붙인다.
-  const segments = (uncut ? [finished] : lengthPlan(finished, usableLength)).map((segFinished) => {
+  // 원장 길이 그대로(2440, 끝단정리 X)인 조각은 자르지 않고 원장째 나간다. 재단손실 5mm 도 없다.
+  const whole = trimEnds ? null : shapeSpec.sheetLength;
+  const segments = lengthPlan(finished, usableLength, whole).map((segFinished) => {
+    const uncut = segFinished === whole;
     const length = uncut ? segFinished : segFinished + CUT_LOSS;
     const perSheet = piecesPerSheet(length, usableLength);
     // 원장과 낱개는 자재가 다르므로 소요 수량도 따로 센다.
@@ -344,6 +349,7 @@ function bySpec(a, b) {
     (a.shape ?? '').localeCompare(b.shape ?? '') ||
     (a.kind === STOCK_STRIP ? 1 : 0) - (b.kind === STOCK_STRIP ? 1 : 0) ||
     (a.cutLength ?? 0) - (b.cutLength ?? 0) ||
+    (a.finishedLength ?? 0) - (b.finishedLength ?? 0) ||
     (a.length ?? 0) - (b.length ?? 0)
   );
 }
@@ -355,7 +361,7 @@ function bucketsOf(items) {
   for (const item of items) {
     for (const seg of item.segments) {
       for (const stock of seg.stocks) {
-        const key = [item.shape.label, item.color.name, seg.cutLength, item.input.trimEnds, stock.kind].join('|');
+        const key = [item.shape.label, item.color.name, seg.finishedLength, item.input.trimEnds, stock.kind].join('|');
         const bucket = buckets.get(key) ?? {
           shape: item.shape.label,
           shapeKey: item.shape.key,
@@ -393,7 +399,7 @@ function bucketsOf(items) {
 // 같은 금액이면 기본 배치(widthPlan)에서 바꾼 면이 적은 쪽 → 넘치는 폭이 적은 쪽.
 function chooseBoards(items) {
   const chosen = items.map((it) => it.widthPlan.boards);
-  const stockKey = (it, seg) => [it.shape.key, it.color.name, seg.cutLength, it.input.trimEnds].join('|');
+  const stockKey = (it, seg) => [it.shape.key, it.color.name, seg.finishedLength, it.input.trimEnds].join('|');
 
   // 조각 길이를 공유하는 재단면끼리 묶는다 (union-find)
   const parent = items.map((_, i) => i);
@@ -418,7 +424,7 @@ function chooseBoards(items) {
     const mult = idx.map((i) => {
       const m = new Map();
       for (const seg of items[i].segments) {
-        let L = lengths.findIndex((x) => x.cutLength === seg.cutLength);
+        let L = lengths.findIndex((x) => x.finishedLength === seg.finishedLength);
         if (L < 0) L = lengths.push(seg) - 1;
         m.set(L, (m.get(L) ?? 0) + 1);
       }
@@ -475,7 +481,7 @@ export function calculate(inputs) {
   // 재단 지시서: 모양 + 색상 + 재단길이 + 자재
   const cutMap = new Map();
   for (const b of buckets.values()) {
-    const key = [b.shape, b.color, b.cutLength, b.kind].join('|');
+    const key = [b.shape, b.color, b.finishedLength, b.kind].join('|');
     const row = cutMap.get(key) ?? {
       shape: b.shape, shapeKey: b.shapeKey, color: b.color, kind: b.kind, stockWidth: b.stockWidth,
       cutLength: b.cutLength, finishedLength: b.finishedLength, pieces: 0,
@@ -521,7 +527,7 @@ export function calculate(inputs) {
   // 자투리: 재단 지시서와 같은 단위로 묶는다.
   const leftoverMap = new Map();
   for (const b of buckets.values()) {
-    const key = [b.shape, b.color, b.cutLength, b.kind].join('|');
+    const key = [b.shape, b.color, b.finishedLength, b.kind].join('|');
     const row = leftoverMap.get(key) ?? {
       shape: b.shape, shapeKey: b.shapeKey, color: b.color, kind: b.kind, stockWidth: b.stockWidth,
       cutLength: b.cutLength, sheetTails: [],
@@ -582,7 +588,7 @@ export function barGroupsOf(buckets) {
     while (left > 0) {
       const count = Math.min(b.piecesPerSheet, left);
       const used = count * b.cutLength + (count - 1) * KERF;
-      const key = [b.shape, b.color, b.kind, b.cutLength, count, b.trimEnds].join('|');
+      const key = [b.shape, b.color, b.kind, b.finishedLength, count, b.trimEnds].join('|');
       const group = groups.get(key) ?? {
         shape: b.shape,
         shapeKey: b.shapeKey,

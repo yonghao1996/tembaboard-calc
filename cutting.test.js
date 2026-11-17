@@ -216,9 +216,10 @@ test('세로 3000 사각 1200 — 조각별로 자재를 따로 센다', () => {
 
   assert.equal(item.finishedLength, 2985, '3000 - 몰딩 15');
   assert.equal(item.joints, 1, '이음 1군데');
-  assert.deepEqual(item.segments.map((s) => s.finishedLength), [2435, 550]);
-  assert.deepEqual(item.segments.map((s) => s.cutLength), [2440, 555]);
-  // 2440 조각은 원장당 1개 → 4장, 555 조각은 원장당 floor(2460/575) = 4 → 1장
+  // 2440 은 원장째(자르지 않음), 나머지 545 만 자른다 (2026-11-17)
+  assert.deepEqual(item.segments.map((s) => s.finishedLength), [2440, 545]);
+  assert.deepEqual(item.segments.map((s) => s.cutLength), [2440, 550]);
+  // 2440 은 원장당 1개 → 4장, 550 조각은 원장당 floor(2440/550) = 4 → 1장
   assert.deepEqual(item.segments.map((s) => s.piecesPerSheet), [1, 4]);
   assert.equal(item.sheets, 5, '4 + 1');
 
@@ -227,7 +228,7 @@ test('세로 3000 사각 1200 — 조각별로 자재를 따로 센다', () => {
   }]);
   assert.equal(
     formatCuttingSheet(result),
-    ['사각-화이트 : 550 - 4조각', '사각-화이트 : 2435 - 4조각', '마감몰딩-화이트 (상단) : 1200 - 1개'].join('\n'),
+    ['사각-화이트 : 545 - 4조각', '사각-화이트 : 2440 - 4조각 (재단 없음)', '마감몰딩-화이트 (상단) : 1200 - 1개'].join('\n'),
   );
   assert.ok(formatOrderSummary(result).includes('템바보드 타입 / 사각, 색상 / JA3011-화이트 : 5개'));
 });
@@ -244,8 +245,10 @@ test('재단 횟수 = 실제로 잘라내는 조각 수', () => {
   // 폭 1200(사각 300) → 4조각 → 4회. 자재에 몇 개 들어가든 조각마다 1회.
   const item = calculateItem({ shape: 'square', color: '화이트', width: 1200, height: 800 });
   assert.equal(item.cutCount, 4);
-  // 세로가 나뉘면 조각도 늘어난다: 2985 → 2435 + 550, 4열 → 8회
-  assert.equal(calculateItem({ shape: 'square', color: '화이트', width: 1200, height: 2985 }).cutCount, 8);
+  // 세로가 나뉘면 조각도 늘어나지만 2440 원장째 조각은 자르지 않는다: 2985 → 2440 + 545, 4열 → 4회
+  assert.equal(calculateItem({ shape: 'square', color: '화이트', width: 1200, height: 2985 }).cutCount, 4);
+  // 끝단정리 O 면 원장째가 없다: 2985 → 2415 + 570, 4열 → 8회
+  assert.equal(calculateItem({ shape: 'square', color: '화이트', width: 1200, height: 2985, trimEnds: true }).cutCount, 8);
 });
 
 // --- 모양별 취급 색상 / 스토어 옵션명 ---------------------------------------
@@ -518,11 +521,10 @@ test('원장/낱개는 재단면끼리 나눠 쓰므로 주문 전체로 고른�
 });
 
 test('세로가 달라도 조각 길이가 같으면 자재를 나눠 쓰는 걸로 보고 고른다', () => {
-  // 세로 3000 → 2435 + 565. 세로 565 면과 565 조각 자재를 나눠 쓴다.
-  // 따로 고르면 565 면이 원장 3장(85,500), 같이 보면 전부 낱개(84,500)
+  // 세로 3000 → 2440(원장째) + 560. 세로 560 면과 560 조각 자재를 나눠 쓴다.
   const result = calculate([
     { shape: 'square', color: '화이트', width: 100, height: 3000 },
-    { shape: 'square', color: '화이트', width: 850, height: 565 },
+    { shape: 'square', color: '화이트', width: 850, height: 560 },
   ]);
   assert.deepEqual(result.items.map((i) => i.widthPlan.boards), [0, 0]);
   assert.equal(result.boards.length, 0);
@@ -652,7 +654,7 @@ test('벽면 배치도 — 세로가 나뉘면 행도 나뉜다', () => {
   }]);
   const wall = result.walls[0];
 
-  assert.deepEqual(wall.rows.map((r) => r.length), [15, 2435, 550]);
+  assert.deepEqual(wall.rows.map((r) => r.length), [15, 2440, 545]);
   assert.equal(wall.rows.reduce((n, r) => n + r.length, 0), 3000);
 });
 
@@ -706,9 +708,9 @@ test('자투리 목록 — 재단 후 손에 남는 조각을 한 곳에 모은�
   assert.deepEqual(
     leftoverPieces(result).map((p) => [p.shape, p.width, p.length, p.count, p.from]),
     [
-      // 완성 3985 = 2435 + 1550 → 재단 2440 + 1555
-      ['사각', 300, 885, 4, 'cut'],   // 1555 조각을 뽑은 원장 4장, 2440 - 1555
-      ['사각', 100, 885, 1, 'cut'],   // 낱개에서도 같은 길이가 남는다
+      // 완성 3985 = 2440(원장째) + 1545 → 재단 2440 + 1550
+      ['사각', 300, 890, 4, 'cut'],   // 1550 조각을 뽑은 원장 4장, 2440 - 1550
+      ['사각', 100, 890, 1, 'cut'],   // 낱개에서도 같은 길이가 남는다
       ['마감몰딩', 15, 1170, 1, 'molding'], // 몰딩 2440 - 1270
     ],
     '큰 조각부터 (넓이 기준)',
@@ -745,4 +747,25 @@ test('세로 2440(원장 길이 그대로)은 자르지 않는다: 재단손실 
   // 끝단정리를 하면 원장 끝을 자르므로 예전처럼 나눈다
   const trimmed = calculate([{ shape: 'square', color: '화이트', width: 300, height: 2440, trimEnds: true }]);
   assert.ok(trimmed.items[0].segments.length > 1);
+});
+
+test('2440 보다 긴 세로도 원장(2440)을 그대로 먼저 쓰고 나머지만 자른다', () => {
+  // 반달은 낱개가 없어 원장 1열 그대로 (사각 300 은 낱개 3열이 더 싸서 조각 수가 달라진다)
+  const r = calculate([{ shape: 'half', color: '화이트', width: 295, height: 3000, trimEnds: false }]);
+  assert.deepEqual(r.items[0].segments.map((s) => [s.finishedLength, s.cutLength, s.uncut]),
+    [[2440, 2440, true], [560, 565, false]]);
+  assert.equal(r.cutCount, 1, '560 조각만 자른다');
+  assert.equal(formatCuttingSheet(r), ['반달-화이트 : 560 - 1조각', '반달-화이트 : 2440 - 1조각 (재단 없음)'].join('\n'));
+
+  const two = calculate([{ shape: 'half', color: '화이트', width: 295, height: 4880, trimEnds: false }]);
+  assert.deepEqual(two.items[0].segments.map((s) => s.finishedLength), [2440, 2440]);
+  assert.equal(two.cutCount, 0);
+
+  // 원장째와 같은 재단길이(2440)를 갖는 2435 조각은 따로 묶는다
+  const mix = calculate([
+    { shape: 'square', color: '화이트', width: 300, height: 2440 },
+    { shape: 'square', color: '화이트', width: 300, height: 2435 },
+  ]);
+  assert.equal(formatCuttingSheet(mix), ['사각-화이트 : 2435 - 1조각', '사각-화이트 : 2440 - 1조각 (재단 없음)'].join('\n'));
+  assert.equal(mix.cutCount, 1);
 });
