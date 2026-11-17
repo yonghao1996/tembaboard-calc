@@ -416,10 +416,10 @@ footer {
 
 <div class="wrap">
   <header>
-    <div class="eyebrow">데코타일 60 × 60</div>
+    <div class="eyebrow">데코타일 600 × 600</div>
     <h1>데코타일 수량 계산기</h1>
     <div class="specbar">
-      <span>타일 <b>60 × 60cm</b></span>
+      <span>타일 <b>600 × 600mm</b> (접착식·비접착식 동일)</span>
       <span>1장 <b>0.36㎡</b></span>
       <span>손실 <b>+10%</b></span>
       <span>한평 기준 <b>9장</b></span>
@@ -501,12 +501,12 @@ footer {
       <section class="panel">
         <div class="panel-head">
           <h2>평수별 기준 수량</h2>
-          <span class="hint">60 × 60cm</span>
+          <span class="hint">600 × 600mm</span>
         </div>
         <div class="panel-body">
           <div class="tbl-scroll"><table>
             <thead><tr><th>사이즈</th><th>반평</th><th>한평</th></tr></thead>
-            <tbody><tr><td>60CM × 60CM</td><td>—</td><td>9장</td></tr></tbody>
+            <tbody><tr><td>600 × 600mm</td><td>—</td><td>9장</td></tr></tbody>
           </table></div>
         </div>
       </section>
@@ -730,7 +730,7 @@ function quoteXlsx(template, lines, customer) {
 }
 
 /**
- * 데코타일 수량 계산기 (60 × 60). 템바보드 계산기와 같은 방식으로 주문 요약·견적·톡톡·검수 링크를 낸다.
+ * 데코타일 수량 계산기 (600 × 600mm, 접착식·비접착식 동일). 템바보드 계산기와 같은 방식으로 주문 요약·견적·톡톡·검수 링크를 낸다.
  * 계산은 예전 계산기(tile.shbom.com) 그대로: 장수 = 올림(가로 × 세로 ÷ 3600 × 1.1). 치수 단위 cm.
  * 옵션·가격은 스마트스토어 옵션 엑셀(2026-11-17)에서 옮겼다. 바뀌면 TILE_OPTIONS / TILE_BASE_PRICE 만 고친다.
  */
