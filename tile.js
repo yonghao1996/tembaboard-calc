@@ -1,12 +1,11 @@
 /**
  * 데코타일 수량 계산기 (600 × 600mm, 접착식·비접착식 동일). 템바보드 계산기와 같은 방식으로 주문 요약·견적·톡톡·검수 링크를 낸다.
- * 계산은 예전 계산기(tile.shbom.com) 그대로: 장수 = 올림(가로 × 세로 ÷ 3600 × 1.1). 치수 단위 cm.
+ * 장수 = 올림(가로 × 세로 ÷ 3600). 손실분은 더하지 않는다. 치수 단위 cm.
  * 옵션·가격은 스마트스토어 옵션 엑셀(2026-11-17)에서 옮겼다. 바뀌면 TILE_OPTIONS / TILE_BASE_PRICE 만 고친다.
  */
 import { CALC_URL } from './store-options.js';
 
 export const TILE_SIZE = 60;          // cm
-export const TILE_LOSS = 1.1;         // 손실 10%
 export const TILE_BASE_PRICE = 2900;  // 1장 기본 판매가 (낱장 판매)
 export const PYEONG = 3.305785;       // ㎡
 
@@ -49,11 +48,11 @@ export function validateTile(it) {
   return errors;
 }
 
-/** 한 시공면. 장수 = 올림(면적 ÷ 타일 1장 × 1.1). 소수점 오차로 딱 떨어지는 값이 올라가지 않게 반올림 후 올림. */
+/** 한 시공면. 장수 = 올림(면적 ÷ 타일 1장). 소수점 오차로 딱 떨어지는 값이 올라가지 않게 반올림 후 올림. */
 export function tileArea(it) {
   const area = it.width * it.height;                 // ㎠
   const exact = area / (TILE_SIZE * TILE_SIZE);
-  const count = Math.ceil(Math.round(exact * TILE_LOSS * 1e6) / 1e6);
+  const count = Math.ceil(Math.round(exact * 1e6) / 1e6);
   return { ...it, area, m2: area / 10000, pyeong: area / 10000 / PYEONG, exact, count };
 }
 

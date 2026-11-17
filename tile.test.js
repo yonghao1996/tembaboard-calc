@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calculateTiles, tileArea, formatTileOrder, formatTileQuote, encodeTiles, decodeTiles, validateTile, tileUnitPrice } from './tile.js';
 
-test('장수 = 올림(가로 × 세로 ÷ 3600 × 1.1) — 예전 계산기와 같다', () => {
-  assert.equal(tileArea({ width: 300, height: 400 }).count, 37);   // 33.33 × 1.1 = 36.67
-  assert.equal(tileArea({ width: 60, height: 60 }).count, 2);      // 1.1
-  assert.equal(tileArea({ width: 600, height: 600 }).count, 110);  // 딱 100 × 1.1 = 110 (부동소수 오차로 111 이 되지 않는다)
-  assert.equal(tileArea({ width: 181.8, height: 181.8 }).count, 11); // 한평 ≈ 9.18장 × 1.1
+test('장수 = 올림(가로 × 세로 ÷ 3600), 손실분 없음', () => {
+  assert.equal(tileArea({ width: 300, height: 400 }).count, 34);   // 33.33
+  assert.equal(tileArea({ width: 60, height: 60 }).count, 1);
+  assert.equal(tileArea({ width: 600, height: 600 }).count, 100);
+  assert.equal(tileArea({ width: 181.8, height: 181.8 }).count, 10); // 한평 ≈ 9.18장
+  assert.equal(tileArea({ width: 5000, height: 5000 }).count, 6945); // 6944.4
 });
 
 test('단가 = 기본 2,900 + 옵션가', () => {
@@ -24,11 +25,11 @@ test('시공면마다 올림하고 같은 옵션은 합친다. 줄 순서 = 스�
     { type: 'a', color: '마블화이트', width: 100, height: 100 },
   ]);
   assert.equal(formatTileOrder(r), [
-    '데코타일 / 1. 접착식, 색상 / 마블화이트 : 41개',   // 37 + 4
-    '데코타일 / 2. 비접착식, 색상 / 실버 마블 : 4개',
+    '데코타일 / 1. 접착식, 색상 / 마블화이트 : 37개',   // 34 + 3
+    '데코타일 / 2. 비접착식, 색상 / 실버 마블 : 3개',
   ].join('\n'));
-  assert.equal(r.total, 41 * 2900 + 4 * 3600);
-  assert.match(formatTileQuote(r), /합계 : 133,300원$/);
+  assert.equal(r.total, 37 * 2900 + 3 * 3600);
+  assert.match(formatTileQuote(r), /합계 : 118,100원$/);
   assert.deepEqual([r.lines[0].item, r.lines[0].note], ['데코타일 600x600 접착식', '마블화이트']);
 });
 

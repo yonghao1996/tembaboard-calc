@@ -421,7 +421,6 @@ footer {
     <div class="specbar">
       <span>타일 <b>600 × 600mm</b> (접착식·비접착식 동일)</span>
       <span>1장 <b>0.36㎡</b></span>
-      <span>손실 <b>+10%</b></span>
       <span>한평 기준 <b>9장</b></span>
       <span>판매 <b>낱장</b></span>
       <span>1장 <b>2,900원~</b></span>
@@ -451,7 +450,7 @@ footer {
         </div>
         <div class="panel-body">
           <div class="tbl-scroll"><table id="detail"></table></div>
-          <div class="note">필요 장수 = 올림(가로 × 세로 ÷ 3,600 × 1.1). 시공면마다 따로 올림한 뒤 같은 색끼리 합칩니다.</div>
+          <div class="note">필요 장수 = 올림(가로 × 세로 ÷ 3,600). 시공면마다 따로 올림한 뒤 같은 색끼리 합칩니다.</div>
         </div>
       </section>
     </div>
@@ -533,7 +532,7 @@ footer {
   </dialog>
 
   <footer>
-    <span>* 계산 결과는 시공 조건에 따라 달라질 수 있습니다. 손실 10% 를 더해 올림한 예상 소요량입니다.</span>
+    <span>* 계산 결과는 시공 조건에 따라 달라질 수 있습니다. 면적을 타일 1장으로 나눠 올림한 수량입니다.</span>
   </footer>
 </div>
 
@@ -731,12 +730,11 @@ function quoteXlsx(template, lines, customer) {
 
 /**
  * 데코타일 수량 계산기 (600 × 600mm, 접착식·비접착식 동일). 템바보드 계산기와 같은 방식으로 주문 요약·견적·톡톡·검수 링크를 낸다.
- * 계산은 예전 계산기(tile.shbom.com) 그대로: 장수 = 올림(가로 × 세로 ÷ 3600 × 1.1). 치수 단위 cm.
+ * 장수 = 올림(가로 × 세로 ÷ 3600). 손실분은 더하지 않는다. 치수 단위 cm.
  * 옵션·가격은 스마트스토어 옵션 엑셀(2026-11-17)에서 옮겼다. 바뀌면 TILE_OPTIONS / TILE_BASE_PRICE 만 고친다.
  */
 
 const TILE_SIZE = 60;          // cm
-const TILE_LOSS = 1.1;         // 손실 10%
 const TILE_BASE_PRICE = 2900;  // 1장 기본 판매가 (낱장 판매)
 const PYEONG = 3.305785;       // ㎡
 
@@ -779,11 +777,11 @@ function validateTile(it) {
   return errors;
 }
 
-/** 한 시공면. 장수 = 올림(면적 ÷ 타일 1장 × 1.1). 소수점 오차로 딱 떨어지는 값이 올라가지 않게 반올림 후 올림. */
+/** 한 시공면. 장수 = 올림(면적 ÷ 타일 1장). 소수점 오차로 딱 떨어지는 값이 올라가지 않게 반올림 후 올림. */
 function tileArea(it) {
   const area = it.width * it.height;                 // ㎠
   const exact = area / (TILE_SIZE * TILE_SIZE);
-  const count = Math.ceil(Math.round(exact * TILE_LOSS * 1e6) / 1e6);
+  const count = Math.ceil(Math.round(exact * 1e6) / 1e6);
   return { ...it, area, m2: area / 10000, pyeong: area / 10000 / PYEONG, exact, count };
 }
 
