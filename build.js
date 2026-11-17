@@ -67,5 +67,16 @@ const tpl = JSON.stringify(Object.fromEntries(
 ));
 writeFileSync(join(root, 'quote-template.json'), tpl);
 writeFileSync(join(root, 'dist/quote-template.json'), tpl);
+// 데코타일 계산기 (tile/). 스타일은 템바보드 페이지 것을 그대로 쓴다.
+const style = read('web/index.template.html').match(/<style>\n([\s\S]*?)<\/style>/)[1];
+const tileBundle = [read('store-options.js'), read('quote-xlsx.js'), read('tile.js')].map(toClassic).join('\n\n');
+const tileHtml = read('web/tile.template.html')
+  .replace('/*__STYLE__*/', () => style)
+  .replace('/*__BUNDLE__*/', () => tileBundle);
+mkdirSync(join(root, 'tile'), { recursive: true });
+mkdirSync(join(root, 'dist/tile'), { recursive: true });
+writeFileSync(join(root, 'tile/index.html'), standalone(tileHtml, '데코타일 60×60 치수를 넣으면 필요한 장수, 주문 옵션, 견적을 계산합니다.'));
+writeFileSync(join(root, 'dist/tile/index.html'), tileHtml);
+
 const kb = (s) => (s.length / 1024).toFixed(1);
 console.log(`index.html ${kb(page)} KB · dist/index.html ${kb(html)} KB (조각)`);

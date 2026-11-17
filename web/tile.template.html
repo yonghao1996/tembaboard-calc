@@ -1,0 +1,391 @@
+<title>데코타일 수량 계산기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+
+<style>
+/*__STYLE__*/
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">데코타일 60 × 60</div>
+    <h1>데코타일 수량 계산기</h1>
+    <div class="specbar">
+      <span>타일 <b>60 × 60cm</b></span>
+      <span>1장 <b>0.36㎡</b></span>
+      <span>손실 <b>+10%</b></span>
+      <span>한평 기준 <b>9장</b></span>
+      <span>판매 <b>낱장</b></span>
+      <span>1장 <b>2,900원~</b></span>
+    </div>
+  </header>
+
+  <div class="cols">
+    <div class="col-in">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>시공면</h2>
+          <span class="hint">치수 단위 cm</span>
+        </div>
+        <div class="panel-body">
+          <div id="items" style="display:flex;flex-direction:column;gap:14px"></div>
+          <div class="row-actions">
+            <button class="btn solid" id="add">＋ 시공면 추가</button>
+            <button class="btn" id="reset">초기화</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>계산 상세</h2>
+          <span class="hint">시공면별 중간값</span>
+        </div>
+        <div class="panel-body">
+          <div class="tbl-scroll"><table id="detail"></table></div>
+          <div class="note">필요 장수 = 올림(가로 × 세로 ÷ 3,600 × 1.1). 시공면마다 따로 올림한 뒤 같은 색끼리 합칩니다.</div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-out">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>출력</h2>
+          <span class="hint">붙여넣기용</span>
+        </div>
+        <div class="panel-body">
+          <div class="out-block">
+            <div class="out-label">
+              <span>주문 요약 <span style="text-transform:none;font-weight:400">(스토어 옵션명)</span></span>
+              <span class="btn-row">
+                <button class="btn" data-copy="sum">복사</button>
+                <a class="btn solid" id="send-talk" target="_blank" rel="noopener">톡톡으로 보내기</a>
+              </span>
+            </div>
+            <pre class="out" id="out-sum"></pre>
+          </div>
+          <div class="out-block">
+            <div class="out-label"><span>시공 정보</span></div>
+            <pre class="out" id="out-space"></pre>
+            <p class="note">톡톡으로 보내기를 누르면 주문 요약과 시공 정보가 복사됩니다. 안내 창에서 톡톡을 열고 대화창에 <b>붙여넣기</b>(⌘V · Ctrl+V · 길게 눌러 붙여넣기) 해서 보내 주세요.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>견적</h2>
+          <span class="hint">스토어 판매가</span>
+        </div>
+        <div class="panel-body">
+          <div class="tbl-scroll"><table id="quote"></table></div>
+          <div class="row-actions"><button class="btn" data-copy="quote">견적 복사</button></div>
+          <div class="field" style="margin-top:12px">
+            <label for="quote-to">받는 분 (견적서 '○○ 님 귀하')</label>
+            <input type="text" id="quote-to" placeholder="예: 당진꿈나래학교" autocomplete="off">
+          </div>
+          <div class="row-actions" style="margin-top:8px"><button class="btn solid" id="quote-xlsx">엑셀 견적서 받기</button></div>
+          <div class="note" id="quote-xlsx-note"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>평수별 기준 수량</h2>
+          <span class="hint">60 × 60cm</span>
+        </div>
+        <div class="panel-body">
+          <div class="tbl-scroll"><table>
+            <thead><tr><th>사이즈</th><th>반평</th><th>한평</th></tr></thead>
+            <tbody><tr><td>60CM × 60CM</td><td>—</td><td>9장</td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="manual-copy" style="display:none">
+    <div class="manual-head">
+      <strong id="manual-copy-title">복사가 차단됐습니다</strong>
+      <button class="btn" id="manual-copy-close">닫기</button>
+    </div>
+    <p class="note">아래 내용이 선택돼 있습니다. <b>⌘C</b> (윈도우는 <b>Ctrl+C</b>) 로 복사하세요.</p>
+    <textarea id="manual-copy-text" readonly rows="10"></textarea>
+  </div>
+
+  <dialog id="talk-guide">
+    <strong>주문 내용이 복사됐어요</strong>
+    <p>톡톡 대화창에 <b>붙여넣기</b> 한 뒤 보내 주세요.<br>
+      컴퓨터 <b>⌘V</b> (윈도우 <b>Ctrl+V</b>) · 휴대폰은 입력칸을 <b>길게 눌러 붙여넣기</b></p>
+    <div class="btn-row">
+      <a class="btn solid" id="talk-guide-open" target="_blank" rel="noopener">톡톡 열기</a>
+      <button class="btn" id="talk-guide-close">닫기</button>
+    </div>
+  </dialog>
+
+  <footer>
+    <span>* 계산 결과는 시공 조건에 따라 달라질 수 있습니다. 손실 10% 를 더해 올림한 예상 소요량입니다.</span>
+  </footer>
+</div>
+
+<script>
+/*__BUNDLE__*/
+</script>
+
+<script>
+(function () {
+  const $ = (sel) => document.querySelector(sel);
+  const blank = () => ({ type: 'a', color: tileColors('a')[0], width: NaN, height: NaN });
+  const isBlank = (v) => v === undefined || v === null || v === '' || Number.isNaN(v);
+  const visibleErrors = (it) => validateTile(it).filter((e) =>
+    !(e.code === 'INVALID_WIDTH' && isBlank(it.width)) && !(e.code === 'INVALID_HEIGHT' && isBlank(it.height)));
+
+  let items = [blank()];
+  let lastText = { sum: '', quote: '' };
+  let lastResult = null;
+
+  function renderItems() {
+    const box = $('#items');
+    box.innerHTML = '';
+    items.forEach((item, idx) => {
+      const errors = visibleErrors(item);
+      const card = document.createElement('div');
+      card.className = 'item' + (errors.length ? ' invalid' : '');
+
+      const head = document.createElement('div');
+      head.className = 'item-head';
+      head.innerHTML = '<span class="item-no">시공면 ' + String(idx + 1).padStart(2, '0') + '</span>';
+      if (items.length > 1) {
+        const del = document.createElement('button');
+        del.className = 'link';
+        del.textContent = '삭제';
+        del.onclick = () => { items.splice(idx, 1); render(); };
+        head.appendChild(del);
+      }
+      card.appendChild(head);
+
+      const grid = document.createElement('div');
+      grid.className = 'item-grid';
+
+      const fType = document.createElement('div');
+      fType.className = 'field';
+      fType.innerHTML = '<label>종류</label>';
+      const seg = document.createElement('div');
+      seg.className = 'seg';
+      Object.values(TILE_TYPES).forEach((t) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = t.label;
+        b.setAttribute('aria-pressed', String(item.type === t.key));
+        b.onclick = () => {
+          item.type = t.key;
+          if (!tileColors(t.key).includes(item.color)) item.color = tileColors(t.key)[0];
+          render();
+        };
+        seg.appendChild(b);
+      });
+      fType.appendChild(seg);
+      grid.appendChild(fType);
+
+      const fColor = document.createElement('div');
+      fColor.className = 'field';
+      fColor.innerHTML = '<label>색상 <span style="opacity:.7">(' + TILE_TYPES[item.type].label + ' ' + tileColors(item.type).length + '색)</span></label>';
+      const sel = document.createElement('select');
+      tileColors(item.type).forEach((name) => {
+        const o = document.createElement('option');
+        o.value = name;
+        const extra = tileUnitPrice(item.type, name) - TILE_BASE_PRICE;
+        o.textContent = name + (extra ? ' (+' + extra.toLocaleString('ko-KR') + '원)' : '');
+        if (name === item.color) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.onchange = (e) => { item.color = e.target.value; render(); };
+      fColor.appendChild(sel);
+      grid.appendChild(fColor);
+
+      [['width', '가로 (cm)'], ['height', '세로 (cm)']].forEach(([key, label]) => {
+        const f = document.createElement('div');
+        f.className = 'field';
+        f.innerHTML = '<label>' + label + '</label>';
+        const inp = document.createElement('input');
+        inp.type = 'number';
+        inp.value = isBlank(item[key]) ? '' : item[key];
+        inp.placeholder = key === 'width' ? '예: 300' : '예: 400';
+        inp.min = '0';
+        inp.step = 'any';
+        inp.dataset.key = idx + ':' + key;
+        inp.oninput = (e) => { item[key] = e.target.value === '' ? NaN : Number(e.target.value); render({ keepFocus: e.target }); };
+        f.appendChild(inp);
+        grid.appendChild(f);
+      });
+
+      card.appendChild(grid);
+      if (errors.length) {
+        const e = document.createElement('div');
+        e.className = 'err';
+        e.textContent = errors.map((x) => x.message).join(' / ');
+        card.appendChild(e);
+      }
+      box.appendChild(card);
+    });
+  }
+
+  function renderOutput() {
+    const valid = items.filter((i) => validateTile(i).length === 0);
+    const sumEl = $('#out-sum'), spaceEl = $('#out-space');
+    if (valid.length === 0) {
+      const msg = items.every((it) => isBlank(it.width) && isBlank(it.height))
+        ? '가로·세로를 입력하면 결과가 나옵니다.' : '입력값을 확인해 주세요.';
+      [sumEl, spaceEl].forEach((el) => { el.textContent = msg; el.classList.add('empty'); });
+      $('#detail').innerHTML = '';
+      $('#quote').innerHTML = '';
+      lastText = { sum: '', quote: '' };
+      lastResult = null;
+      updateActionButtons();
+      return;
+    }
+
+    const r = calculateTiles(valid);
+    lastResult = r;
+    sumEl.textContent = formatTileOrder(r);
+    spaceEl.textContent = formatTileSpaces(r);
+    [sumEl, spaceEl].forEach((el) => el.classList.remove('empty'));
+
+    // 검수 링크: 복사할 때만 붙인다. 사장님이 누르면 같은 입력으로 계산기가 열린다.
+    const link = '\n\n검수: ' + TILE_CALC_URL + '#' + encodeURIComponent(encodeTiles(valid));
+    lastText = {
+      sum: '[주문 요약]\n' + formatTileOrder(r) + '\n\n[시공 정보]\n' + formatTileSpaces(r) + link,
+      quote: formatTileQuote(r) + link,
+    };
+
+    const head = ['시공면', '옵션', '가로 × 세로', '면적', '순수 장수', '필요 장수'];
+    $('#detail').innerHTML =
+      '<thead><tr>' + head.map((h) => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>' +
+      r.areas.map((a, i) => '<tr><td>' + String(i + 1).padStart(2, '0') + '</td><td>' + TILE_TYPES[a.type].label + ' / ' + a.color +
+        '</td><td>' + a.width + ' × ' + a.height + '</td><td>' + a.m2.toFixed(2) + '㎡ · ' + a.pyeong.toFixed(2) + '평</td><td>' +
+        a.exact.toFixed(2) + '</td><td class="strong">' + a.count + '장</td></tr>').join('') + '</tbody>';
+
+    $('#quote').innerHTML =
+      '<thead><tr><th>항목</th><th>수량</th><th>단가</th><th>금액</th></tr></thead><tbody>' +
+      r.lines.map((l) => '<tr><td>' + l.label + '</td><td>' + l.count + '개</td><td>' + tileWon(l.unit) +
+        '</td><td class="strong">' + tileWon(l.amount) + '</td></tr>').join('') +
+      '<tr class="total"><td>합계</td><td></td><td></td><td>' + tileWon(r.total) + '</td></tr></tbody>';
+    updateActionButtons();
+  }
+
+  function updateActionButtons() {
+    document.querySelectorAll('[data-copy]').forEach((btn) => {
+      const empty = !lastText[btn.dataset.copy];
+      btn.disabled = empty;
+      btn.title = empty ? '가로·세로를 입력하면 활성화됩니다' : '';
+    });
+    const talk = $('#send-talk');
+    const ready = Boolean(lastText.sum);
+    talk.href = TALK_URL || '#';
+    talk.classList.toggle('is-disabled', !ready);
+    talk.setAttribute('aria-disabled', String(!ready));
+  }
+
+  function render(opts) {
+    const focus = opts && opts.keepFocus ? opts.keepFocus.dataset.key : null;
+    const pos = opts && opts.keepFocus ? opts.keepFocus.selectionStart : null;
+    renderItems();
+    renderOutput();
+    if (focus) {
+      const next = document.querySelector('[data-key="' + focus + '"]');
+      if (next) { next.focus(); try { next.setSelectionRange(pos, pos); } catch (e) {} }
+    }
+  }
+
+  $('#add').onclick = () => { items.push(blank()); render(); };
+  $('#reset').onclick = () => { items = [blank()]; render(); };
+
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+    } catch (e) { /* 다음 방법으로 */ }
+    return execCopy(text);
+  }
+  function execCopy(text) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) { return false; }
+  }
+  function showManualCopy(text, title) {
+    $('#manual-copy-title').textContent = title || '복사가 차단됐습니다';
+    $('#manual-copy-text').value = text;
+    $('#manual-copy').style.display = 'flex';
+    $('#manual-copy-text').focus();
+    $('#manual-copy-text').select();
+  }
+  $('#manual-copy-close').onclick = () => { $('#manual-copy').style.display = 'none'; };
+
+  // 톡톡은 메시지를 미리 채울 수 없다: 복사 → 붙여넣기 안내 창 → 톡톡 열기
+  $('#send-talk').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const text = lastText.sum;
+    if (!text) return;
+    const copied = execCopy(text) || await copyText(text);
+    if (copied) $('#talk-guide').showModal();
+    else showManualCopy(text);
+  });
+  $('#talk-guide-open').href = TALK_URL || '#';
+  $('#talk-guide-open').addEventListener('click', () => $('#talk-guide').close());
+  $('#talk-guide-close').onclick = () => $('#talk-guide').close();
+
+  let quoteTemplate = null;
+  $('#quote-xlsx').onclick = async () => {
+    const note = $('#quote-xlsx-note');
+    note.textContent = '';
+    if (!lastResult) { note.textContent = '가로·세로를 입력하면 견적서를 만들 수 있습니다.'; return; }
+    try {
+      quoteTemplate = quoteTemplate || await (await fetch('../quote-template.json')).json();
+      const to = $('#quote-to').value.trim();
+      const bytes = quoteXlsx(quoteTemplate, lastResult.lines, to);
+      const d = new Date();
+      const ymd = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      a.download = '견적서_' + (to || '데코타일') + '_' + ymd + '.xlsx';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch (e) {
+      note.textContent = '견적서를 만들지 못했습니다: ' + e.message;
+    }
+  };
+
+  document.querySelectorAll('[data-copy]').forEach((btn) => {
+    btn.onclick = async () => {
+      const label = btn.dataset.label || btn.textContent;
+      btn.dataset.label = label;
+      const text = lastText[btn.dataset.copy];
+      if (!text) return;
+      if (await copyText(text)) {
+        btn.textContent = '복사됨';
+        setTimeout(() => { btn.textContent = label; }, 1200);
+      } else showManualCopy(text);
+    };
+  });
+
+  function loadFromHash() {
+    let fromLink = [];
+    try { fromLink = decodeTiles(decodeURIComponent(location.hash.slice(1))); } catch (e) { /* 깨진 링크 */ }
+    if (fromLink.length) items = fromLink;
+  }
+  window.addEventListener('hashchange', () => { loadFromHash(); render(); });
+  loadFromHash();
+  render();
+})();
+</script>

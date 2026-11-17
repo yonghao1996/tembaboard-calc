@@ -1,0 +1,1096 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="데코타일 60×60 치수를 넣으면 필요한 장수, 주문 옵션, 견적을 계산합니다.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%239A7A08'/%3E%3Cpath d='M8 7v18h17' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='square'/%3E%3C/svg%3E">
+<title>데코타일 수량 계산기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+</head>
+<body>
+<style>
+:root {
+  --ground: #F3F3EE;
+  --surface: #FFFFFF;
+  --sunken: #EAEAE2;
+  --ink: #1B1C17;
+  --muted: #6C6F63;
+  --line: #DCDCD2;
+  --line-strong: #C2C2B4;
+  --accent: #9A7A08;
+  --accent-ink: #6B5405;
+  --accent-soft: #F3E9C4;
+  --ok: #2C6F4E;
+  --bad: #A5342A;
+  --bad-soft: #F6E3E0;
+
+  --sans: "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+  --mono: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #17180F;
+    --surface: #202117;
+    --sunken: #292A1F;
+    --ink: #EDEDE3;
+    --muted: #9B9E8E;
+    --line: #33352A;
+    --line-strong: #4A4C3E;
+    --accent: #D9B444;
+    --accent-ink: #EBCE7C;
+    --accent-soft: #3B3520;
+    --ok: #6FBB8E;
+    --bad: #E08479;
+    --bad-soft: #3A241F;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #17180F;
+  --surface: #202117;
+  --sunken: #292A1F;
+  --ink: #EDEDE3;
+  --muted: #9B9E8E;
+  --line: #33352A;
+  --line-strong: #4A4C3E;
+  --accent: #D9B444;
+  --accent-ink: #EBCE7C;
+  --accent-soft: #3B3520;
+  --ok: #6FBB8E;
+  --bad: #E08479;
+  --bad-soft: #3A241F;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* --- header --- */
+header { display: flex; flex-direction: column; gap: 10px; }
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.lede { margin: 0; color: var(--muted); max-width: 62ch; }
+.specbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+.specbar b { color: var(--ink); font-weight: 500; }
+
+/* --- layout --- */
+.cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+@media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.panel-head h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.panel-head .hint { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.panel-body { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+
+.col-out { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 28px; }
+@media (max-width: 900px) { .col-out { position: static; } }
+.col-in { display: flex; flex-direction: column; gap: 28px; }
+
+/* --- item card --- */
+.item {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+}
+.item.invalid { border-color: var(--bad); }
+.item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--sunken);
+  border-bottom: 1px solid var(--line);
+}
+.item-no {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px 12px;
+}
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field.span { grid-column: 1 / -1; }
+label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+input[type="number"], input[type="text"], select {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  padding: 7px 9px;
+  width: 100%;
+}
+select { font-family: var(--sans); }
+input[type="number"]:focus-visible, input[type="text"]:focus-visible, select:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* segmented + toggles */
+.seg { display: flex; border: 1px solid var(--line-strong); border-radius: 3px; overflow: hidden; }
+.seg button {
+  flex: 1;
+  font-family: var(--sans);
+  font-size: 14px;
+  padding: 7px 4px;
+  background: var(--surface);
+  color: var(--muted);
+  border: 0;
+  cursor: pointer;
+}
+.seg button + button { border-left: 1px solid var(--line-strong); }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+
+.toggles { display: flex; gap: 8px; }
+.toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  user-select: none;
+}
+.toggle input { accent-color: var(--accent); margin: 0; }
+.toggle.on { border-color: var(--accent); color: var(--ink); background: var(--accent-soft); }
+.opt-hint {
+  margin-top: 7px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.opt-hint b { color: var(--accent-ink); font-weight: 600; }
+
+.err {
+  margin: 0 12px 12px;
+  padding: 8px 10px;
+  background: var(--bad-soft);
+  color: var(--bad);
+  border-radius: 3px;
+  font-size: 12.5px;
+}
+
+/* buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 3px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.btn:hover:not(:disabled):not(.is-disabled) { border-color: var(--accent); color: var(--accent-ink); }
+.btn:disabled, .btn.is-disabled { opacity: 0.42; cursor: not-allowed; }
+.btn.solid:disabled, .btn.solid.is-disabled { background: var(--line-strong); border-color: var(--line-strong); color: var(--surface); }
+.btn.solid { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.btn.solid:hover:not(:disabled):not(.is-disabled) { background: var(--accent-ink); border-color: var(--accent-ink); color: #fff; }
+button.link {
+  background: none; border: 0; padding: 2px 4px; cursor: pointer;
+  font-family: var(--mono); font-size: 11px; color: var(--muted); text-decoration: underline;
+}
+button.link:hover { color: var(--bad); }
+.row-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn-row { display: flex; gap: 6px; flex-shrink: 0; }
+.btn-row button { white-space: nowrap; }
+
+/* --- output --- */
+.out-block { display: flex; flex-direction: column; gap: 8px; }
+.out-label {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
+pre.out {
+  margin: 0;
+  padding: 13px 15px;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--accent);
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.75;
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+  overflow-x: auto;
+  color: var(--ink);
+}
+pre.out.empty { color: var(--muted); border-left-color: var(--line-strong); }
+/* 탭으로 나눈 표. 칸이 너무 벌어지지 않게 탭 폭을 줄인다 */
+pre.out.tsv { tab-size: 4; -moz-tab-size: 4; font-size: 12px; }
+
+/* detail table */
+.tbl-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th { font-weight: 500; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+th:first-child, td:first-child { text-align: left; font-family: var(--sans); }
+tbody tr:last-child td { border-bottom: 0; }
+td.strong { color: var(--accent-ink); font-weight: 600; }
+
+/* --- quote --- */
+tr.total td { border-top: 1px solid var(--line-strong); border-bottom: 0; font-weight: 600; padding-top: 10px; }
+tr.total td:last-child { color: var(--accent-ink); font-size: 15px; }
+td.unknown { color: var(--muted); }
+td .over { color: var(--bad); font-weight: 600; }
+.note { font-size: 12px; color: var(--muted); }
+.note.warn { color: var(--bad); }
+.note b { font-weight: 600; }
+
+/* --- 도면 --- */
+h3.group {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+h3.group span { font-family: var(--mono); font-size: 11px; letter-spacing: 0; text-transform: none; }
+.figs.scrap { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
+.figs.scrap figure.fig figcaption { flex-direction: column; gap: 2px; }
+.scrap-none { font-size: 13px; color: var(--muted); }
+.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px; }
+figure.fig { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+figure.fig figcaption {
+  font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+  order: -1; display: flex; flex-wrap: wrap; gap: 4px 10px;
+}
+figure.fig figcaption b { color: var(--ink); font-weight: 500; }
+svg.dwg { max-width: 100%; height: auto; color: var(--ink); display: block; }
+svg.dwg text { fill: currentColor; font-family: var(--mono); font-size: 11px; }
+svg.dwg text.dim { fill: var(--muted); font-size: 10px; }
+svg.dwg .edge { fill: none; stroke: currentColor; stroke-width: 1; }
+svg.dwg .thin { fill: none; stroke: var(--line-strong); stroke-width: 1; }
+svg.dwg .waste { fill: var(--bad-soft); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i {
+  width: 13px; height: 13px; border: 1px solid var(--line-strong); border-radius: 2px; display: inline-block;
+}
+.legend i.hatch {
+  background: repeating-linear-gradient(45deg, var(--sunken) 0 4px, var(--line-strong) 4px 6px);
+}
+.legend i.waste { background: var(--bad-soft); }
+
+/* --- 수동 복사 --- */
+#manual-copy {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 10;
+  margin: 0 auto;
+  max-width: 720px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
+}
+.manual-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#manual-copy textarea {
+  width: 100%;
+  resize: vertical;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink);
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 10px 12px;
+}
+
+/* --- 톡톡 보내기 안내 --- */
+#talk-guide {
+  max-width: 420px;
+  padding: 22px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+#talk-guide::backdrop { background: rgba(0, 0, 0, 0.35); }
+#talk-guide p { margin: 8px 0 18px; line-height: 1.7; }
+
+footer {
+  font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+  border-top: 1px solid var(--line); padding-top: 14px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">데코타일 60 × 60</div>
+    <h1>데코타일 수량 계산기</h1>
+    <div class="specbar">
+      <span>타일 <b>60 × 60cm</b></span>
+      <span>1장 <b>0.36㎡</b></span>
+      <span>손실 <b>+10%</b></span>
+      <span>한평 기준 <b>9장</b></span>
+      <span>판매 <b>낱장</b></span>
+      <span>1장 <b>2,900원~</b></span>
+    </div>
+  </header>
+
+  <div class="cols">
+    <div class="col-in">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>시공면</h2>
+          <span class="hint">치수 단위 cm</span>
+        </div>
+        <div class="panel-body">
+          <div id="items" style="display:flex;flex-direction:column;gap:14px"></div>
+          <div class="row-actions">
+            <button class="btn solid" id="add">＋ 시공면 추가</button>
+            <button class="btn" id="reset">초기화</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>계산 상세</h2>
+          <span class="hint">시공면별 중간값</span>
+        </div>
+        <div class="panel-body">
+          <div class="tbl-scroll"><table id="detail"></table></div>
+          <div class="note">필요 장수 = 올림(가로 × 세로 ÷ 3,600 × 1.1). 시공면마다 따로 올림한 뒤 같은 색끼리 합칩니다.</div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-out">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>출력</h2>
+          <span class="hint">붙여넣기용</span>
+        </div>
+        <div class="panel-body">
+          <div class="out-block">
+            <div class="out-label">
+              <span>주문 요약 <span style="text-transform:none;font-weight:400">(스토어 옵션명)</span></span>
+              <span class="btn-row">
+                <button class="btn" data-copy="sum">복사</button>
+                <a class="btn solid" id="send-talk" target="_blank" rel="noopener">톡톡으로 보내기</a>
+              </span>
+            </div>
+            <pre class="out" id="out-sum"></pre>
+          </div>
+          <div class="out-block">
+            <div class="out-label"><span>시공 정보</span></div>
+            <pre class="out" id="out-space"></pre>
+            <p class="note">톡톡으로 보내기를 누르면 주문 요약과 시공 정보가 복사됩니다. 안내 창에서 톡톡을 열고 대화창에 <b>붙여넣기</b>(⌘V · Ctrl+V · 길게 눌러 붙여넣기) 해서 보내 주세요.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>견적</h2>
+          <span class="hint">스토어 판매가</span>
+        </div>
+        <div class="panel-body">
+          <div class="tbl-scroll"><table id="quote"></table></div>
+          <div class="row-actions"><button class="btn" data-copy="quote">견적 복사</button></div>
+          <div class="field" style="margin-top:12px">
+            <label for="quote-to">받는 분 (견적서 '○○ 님 귀하')</label>
+            <input type="text" id="quote-to" placeholder="예: 당진꿈나래학교" autocomplete="off">
+          </div>
+          <div class="row-actions" style="margin-top:8px"><button class="btn solid" id="quote-xlsx">엑셀 견적서 받기</button></div>
+          <div class="note" id="quote-xlsx-note"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>평수별 기준 수량</h2>
+          <span class="hint">60 × 60cm</span>
+        </div>
+        <div class="panel-body">
+          <div class="tbl-scroll"><table>
+            <thead><tr><th>사이즈</th><th>반평</th><th>한평</th></tr></thead>
+            <tbody><tr><td>60CM × 60CM</td><td>—</td><td>9장</td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="manual-copy" style="display:none">
+    <div class="manual-head">
+      <strong id="manual-copy-title">복사가 차단됐습니다</strong>
+      <button class="btn" id="manual-copy-close">닫기</button>
+    </div>
+    <p class="note">아래 내용이 선택돼 있습니다. <b>⌘C</b> (윈도우는 <b>Ctrl+C</b>) 로 복사하세요.</p>
+    <textarea id="manual-copy-text" readonly rows="10"></textarea>
+  </div>
+
+  <dialog id="talk-guide">
+    <strong>주문 내용이 복사됐어요</strong>
+    <p>톡톡 대화창에 <b>붙여넣기</b> 한 뒤 보내 주세요.<br>
+      컴퓨터 <b>⌘V</b> (윈도우 <b>Ctrl+V</b>) · 휴대폰은 입력칸을 <b>길게 눌러 붙여넣기</b></p>
+    <div class="btn-row">
+      <a class="btn solid" id="talk-guide-open" target="_blank" rel="noopener">톡톡 열기</a>
+      <button class="btn" id="talk-guide-close">닫기</button>
+    </div>
+  </dialog>
+
+  <footer>
+    <span>* 계산 결과는 시공 조건에 따라 달라질 수 있습니다. 손실 10% 를 더해 올림한 예상 소요량입니다.</span>
+  </footer>
+</div>
+
+<script>
+/**
+ * 스토어(네이버) 옵션명.
+ * 주문 요약을 주문서와 한 줄씩 대조할 수 있게, 출력 문구를 스토어 옵션 그룹명과 맞춘다.
+ * 옵션명이 바뀌면 계산 로직은 건드리지 말고 이 파일만 고친다.
+ * 줄 순서도 스토어 옵션 순서를 따른다.
+ */
+const STORE_OPTIONS = {
+  shape: '템바보드 타입',
+  color: '색상',
+  /**
+   * 재단 횟수. 수량 = 총 재단 횟수.
+   * '재단 필요해요' 는 추가옵션 그룹명이고 실제로 고르는 항목은 그 안의
+   * '톡톡으로 말씀주세요' 다. 어느 걸 눌러야 하는지 헷갈려서 둘 다 적는다.
+   */
+  cutting: '재단 필요해요 > 톡톡으로 말씀주세요',
+  /** 마감몰딩은 추가상품. 규격별로 옵션이 따로 있다. */
+  moldingByLength: {
+    2440: '마감몰딩 2440mm 기준',
+    1200: '마감몰딩 1200mm 기준',
+  },
+  /** 100mm 낱개 템바. 색상은 원장 색상을 그대로 따라간다. */
+  stripByShape: {
+    square: '사각템바 (100x2440x12T)',
+  },
+};
+
+/**
+ * 관리자페이지 주문요약의 상품명·자재 규격.
+ * 상품은 자재 폭으로 갈린다. 원장 _30cm / 낱개 _10cm.
+ *
+ * 반달 원장의 규격 폭은 295 다. 관리자페이지 기록이 `295*2440*9T` 로 나온다.
+ * 다르면 이 표만 고친다.
+ */
+const ADMIN_PRODUCTS = {
+  square: { name: '붙이는 사각템바 12T', thickness: '12T', boardWidth: 300 },
+  half:   { name: '붙이는 반달템바 9T',  thickness: '9T',  boardWidth: 295 },
+};
+
+/** 상품명 뒤에 붙는 폭 구분 */
+const ADMIN_SIZE_SUFFIX = { board: '_30cm', strip: '_10cm' };
+
+/**
+ * 마감몰딩. 모양과 무관하게 규격이 하나뿐이라 두께도 12T 로 고정이다.
+ * 우리가 자르지 않으므로 재단내역 칸 없이 4칸만 낸다.
+ */
+const ADMIN_MOLDING = { name: '붙이는 마감몰딩', width: 15, thickness: '12T' };
+
+/**
+ * 네이버 톡톡 상담 주소. 예: 'https://talk.naver.com/ct/xxxxxx'
+ * 톡톡은 링크로 메시지를 미리 채우는 규격이 없다. 그래서 '톡톡으로 보내기' 버튼은
+ * 지시서를 복사한 뒤 톡톡 창을 열어 주고, 붙여넣기는 사람이 한다.
+ * 비워 두면 버튼이 복사만 하고 주소가 없다고 알려 준다.
+ */
+const TALK_URL = 'https://talk.naver.com/w48val'; // 아르빙
+
+/** 검수 링크가 여는 계산기 주소. 어느 사본(아티팩트·로컬 파일)에서 복사해도 이 주소로 연다. */
+const CALC_URL = 'https://yonghao1996.github.io/tembaboard-calc/';
+
+/**
+ * 검수 링크. 톡톡으로 보내는 지시서 끝에 붙여, 사장님이 누르면 고객 입력 그대로 계산기가 열린다.
+ * 지시서만으로는 가로·낱개 배치를 거꾸로 알 수 없어서 입력 자체를 싣는다.
+ * 형식: 재단면을 `~` 로 잇고, 재단면 하나는 `모양.색상.가로x세로.옵션`
+ *   모양 h(반달) / s(사각), 옵션 t(상단 몰딩) b(하단 몰딩) e(끝단 정리)
+ *   예) s.화이트.1200x2000.tb~h.카키.590x800.
+ */
+function encodeItems(items) {
+  return items.map((it) => [
+    it.shape === 'half' ? 'h' : 's', it.color, it.width + 'x' + it.height,
+    (it.useMolding ? 't' : '') + (it.bottomMolding ? 'b' : '') + (it.trimEnds ? 'e' : ''),
+  ].join('.')).join('~');
+}
+
+/** 깨진 조각은 버린다. 하나도 못 읽으면 빈 배열. */
+function decodeItems(text) {
+  return String(text).split('~').map((part) => {
+    const [s, color, size, flags = ''] = part.split('.');
+    const m = /^(\d+)x(\d+)$/.exec(size || '');
+    if (!m || !color || (s !== 'h' && s !== 's')) return null;
+    return {
+      shape: s === 'h' ? 'half' : 'square', color, width: Number(m[1]), height: Number(m[2]),
+      useMolding: flags.includes('t'), bottomMolding: flags.includes('b'), trimEnds: flags.includes('e'),
+    };
+  }).filter(Boolean);
+}
+
+/**
+ * 견적서 엑셀. 사장님 견적서 양식(web/quote-template/ = xlsx 를 푼 것)의 품목 칸만 채워 다시 묶는다.
+ * 로고·직인·증서 탭·서식은 양식 그대로. 단가·세액·합계는 양식처럼 수식으로 남기고 엑셀이 다시 계산한다.
+ * 양식을 바꾸려면: unzip -o 새양식.xlsx -d web/quote-template  후  node build.js
+ */
+
+/** 품목 칸: 11·13·…·23행 (2행씩 병합). 양식에 7줄뿐이다. */
+const QUOTE_SLOTS = [11, 13, 15, 17, 19, 21, 23];
+
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** 셀 하나를 바꾼다. 서식(s=)은 그대로 둔다. v: 문자열 / 숫자 / {f: 수식} / null(비움) */
+function setCell(xml, ref, v) {
+  const re = new RegExp(`<c r="${ref}"( s="\\d+")?[^>]*?(?:/>|>[\\s\\S]*?</c>)`);
+  if (!re.test(xml)) throw new Error(`견적서 양식에 ${ref} 칸이 없습니다`);
+  return xml.replace(re, (_, s = '') => {
+    const open = `<c r="${ref}"${s}`;
+    if (v === null || v === undefined || v === '') return `${open}/>`;
+    if (typeof v === 'number') return `${open}><v>${v}</v></c>`;
+    if (typeof v === 'object') return `${open}><f>${esc(v.f)}</f></c>`;
+    return `${open} t="inlineStr"><is><t>${esc(v)}</t></is></c>`;
+  });
+}
+
+/** 양식 sheet1.xml 에 받는 분과 견적 줄(pricing.quote().lines)을 채운다. */
+function fillQuoteSheet(xml, lines, customer = '') {
+  if (lines.length > QUOTE_SLOTS.length) {
+    throw new Error(`견적 품목이 ${lines.length}줄이라 양식(${QUOTE_SLOTS.length}줄)에 다 들어가지 않습니다`);
+  }
+  xml = setCell(xml, 'B6', customer);
+  QUOTE_SLOTS.forEach((r, i) => {
+    const l = lines[i];
+    const row = l
+      ? {
+        F: l.item, G: l.amount === null ? `${l.note} (단가 미정)`.trim() : l.note, H: l.count,
+        I: l.unit === null ? null : { f: `${l.unit}/1.1` },
+        J: { f: `I${r}*H${r}` }, K: { f: `J${r}*0.1` }, L: { f: `(J${r}+K${r})` },
+      }
+      : { F: null, G: null, H: null, I: null, J: null, K: null, L: null };
+    for (const [c, v] of Object.entries(row)) xml = setCell(xml, `${c}${r}`, v);
+  });
+  return xml;
+}
+
+/** 열 때 수식을 전부 다시 계산하게 한다 (캐시 값을 지웠으므로). */
+const recalcOnLoad = (xml) => xml.replace(/<calcPr[^>]*\/>|<calcPr[^>]*>[\s\S]*?<\/calcPr>/, '<calcPr fullCalcOnLoad="1"/>');
+
+const CRC = Array.from({ length: 256 }, (_, n) => {
+  for (let k = 0; k < 8; k++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1;
+  return n >>> 0;
+});
+const crc32 = (b) => {
+  let c = ~0;
+  for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 0xff] ^ (c >>> 8);
+  return ~c >>> 0;
+};
+
+/** 무압축(stored) zip. files: [[경로, Uint8Array]] */
+function zipStore(files) {
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let offset = 0;
+  for (const [path, data] of files) {
+    const name = enc.encode(path), crc = crc32(data);
+    const head = (sig, extra) => {
+      const h = new DataView(new ArrayBuffer(extra));
+      h.setUint32(0, sig, true);
+      return h;
+    };
+    const local = head(0x04034b50, 30);
+    // 버전 20, 플래그 0x800(UTF-8), 무압축, 날짜 1980-01-01
+    local.setUint16(4, 20, true); local.setUint16(6, 0x800, true); local.setUint16(12, 33, true);
+    local.setUint32(14, crc, true); local.setUint32(18, data.length, true); local.setUint32(22, data.length, true);
+    local.setUint16(26, name.length, true);
+    const cen = head(0x02014b50, 46);
+    cen.setUint16(4, 20, true); cen.setUint16(6, 20, true); cen.setUint16(8, 0x800, true); cen.setUint16(14, 33, true);
+    cen.setUint32(16, crc, true); cen.setUint32(20, data.length, true); cen.setUint32(24, data.length, true);
+    cen.setUint16(28, name.length, true); cen.setUint32(42, offset, true);
+    parts.push(new Uint8Array(local.buffer), name, data);
+    central.push(new Uint8Array(cen.buffer), name);
+    offset += 30 + name.length + data.length;
+  }
+  const size = central.reduce((n, p) => n + p.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(12, size, true); end.setUint32(16, offset, true);
+  const all = [...parts, ...central, new Uint8Array(end.buffer)];
+  const out = new Uint8Array(all.reduce((n, p) => n + p.length, 0));
+  let at = 0;
+  for (const p of all) { out.set(p, at); at += p.length; }
+  return out;
+}
+
+/** template: { 경로: base64 } (build.js 가 만든 quote-template.json). 반환: xlsx 바이트 */
+function quoteXlsx(template, lines, customer) {
+  const dec = new TextDecoder(), enc = new TextEncoder();
+  const bytes = (b64) => Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
+  const edit = {
+    'xl/worksheets/sheet1.xml': (x) => fillQuoteSheet(x, lines, customer),
+    'xl/workbook.xml': recalcOnLoad,
+  };
+  const paths = Object.keys(template).sort((a, b) => (a === '[Content_Types].xml' ? -1 : b === '[Content_Types].xml' ? 1 : 0));
+  return zipStore(paths.map((p) => [p, edit[p] ? enc.encode(edit[p](dec.decode(bytes(template[p])))) : bytes(template[p])]));
+}
+
+/**
+ * 데코타일 수량 계산기 (60 × 60). 템바보드 계산기와 같은 방식으로 주문 요약·견적·톡톡·검수 링크를 낸다.
+ * 계산은 예전 계산기(tile.shbom.com) 그대로: 장수 = 올림(가로 × 세로 ÷ 3600 × 1.1). 치수 단위 cm.
+ * 옵션·가격은 스마트스토어 옵션 엑셀(2026-11-17)에서 옮겼다. 바뀌면 TILE_OPTIONS / TILE_BASE_PRICE 만 고친다.
+ */
+
+const TILE_SIZE = 60;          // cm
+const TILE_LOSS = 1.1;         // 손실 10%
+const TILE_BASE_PRICE = 2900;  // 1장 기본 판매가 (낱장 판매)
+const PYEONG = 3.305785;       // ㎡
+
+/** 스토어 옵션: 1단 '데코타일' (접착식 / 비접착식) · 2단 '색상'. extra = 옵션가 */
+const TILE_TYPES = {
+  a: { key: 'a', option: '1. 접착식', label: '접착식' },
+  n: { key: 'n', option: '2. 비접착식', label: '비접착식' },
+};
+const TILE_OPTIONS = {
+  a: [
+    ['마블 블루그레이', 0], ['마블 딥그레이', 0], ['마블화이트', 0], ['실버화이트', 0],
+    ['허니스톤(그레이톤)', 0], ['그레이스톤', 0], ['테라조그레이', 0], ['테라조베이지', 0],
+    ['테라조스노우칩', 0], ['테라조화이트', 0],
+    ['마블 실버그레이', 500], ['허니스톤(베이지톤)', 500], ['오트 베이지', 500], ['스톤 그레이', 500],
+    ['단색 실버', 500], ['실버 마블', 500],
+  ],
+  n: [
+    ['마블화이트', 700], ['허니스톤(베이지톤)', 700], ['오트 베이지', 700], ['실버 마블', 700],
+    ['스톤 그레이', 700], ['모카 샌드', 700], ['마블 딥그레이', 700], ['솔리드 실버', 700],
+    ['솔리드 딥그레이', 700], ['테라조 그레이', 700], ['테라조 베이지', 700], ['테라조 화이트', 700],
+  ],
+};
+
+const TILE_CALC_URL = CALC_URL + 'tile/';
+
+const tileColors = (type) => (TILE_OPTIONS[type] ?? []).map(([name]) => name);
+const tileUnitPrice = (type, color) => {
+  const hit = (TILE_OPTIONS[type] ?? []).find(([name]) => name === color);
+  return hit ? TILE_BASE_PRICE + hit[1] : null;
+};
+const tileWon = (n) => `${n.toLocaleString('ko-KR')}원`;
+
+function validateTile(it) {
+  const errors = [];
+  if (!(it.width > 0)) errors.push({ code: 'INVALID_WIDTH', message: '가로를 0보다 크게 입력하세요' });
+  if (!(it.height > 0)) errors.push({ code: 'INVALID_HEIGHT', message: '세로를 0보다 크게 입력하세요' });
+  if (tileUnitPrice(it.type, it.color) === null) {
+    errors.push({ code: 'COLOR_NOT_IN_TYPE', message: `${TILE_TYPES[it.type]?.label ?? it.type} 에 없는 색상입니다` });
+  }
+  return errors;
+}
+
+/** 한 시공면. 장수 = 올림(면적 ÷ 타일 1장 × 1.1). 소수점 오차로 딱 떨어지는 값이 올라가지 않게 반올림 후 올림. */
+function tileArea(it) {
+  const area = it.width * it.height;                 // ㎠
+  const exact = area / (TILE_SIZE * TILE_SIZE);
+  const count = Math.ceil(Math.round(exact * TILE_LOSS * 1e6) / 1e6);
+  return { ...it, area, m2: area / 10000, pyeong: area / 10000 / PYEONG, exact, count };
+}
+
+/** 시공면마다 따로 올림한 뒤 같은 옵션(종류 + 색상)끼리 합친다. 줄 순서 = 스토어 옵션 순서. */
+function calculateTiles(items) {
+  const areas = items.map(tileArea);
+  const lines = [];
+  for (const type of Object.keys(TILE_TYPES)) {
+    for (const color of tileColors(type)) {
+      const count = areas.filter((a) => a.type === type && a.color === color).reduce((n, a) => n + a.count, 0);
+      if (count === 0) continue;
+      const unit = tileUnitPrice(type, color);
+      lines.push({
+        label: `데코타일 / ${TILE_TYPES[type].option}, 색상 / ${color}`,
+        count, unit, amount: unit * count,
+        item: `데코타일 600x600 ${TILE_TYPES[type].label}`, note: color, // 견적서 엑셀 품명 / 비고
+      });
+    }
+  }
+  return { areas, lines, total: lines.reduce((n, l) => n + l.amount, 0), unknown: [] };
+}
+
+const fix = (n, d = 2) => n.toFixed(d);
+
+const formatTileOrder = (r) => r.lines.map((l) => `${l.label} : ${l.count}개`).join('\n');
+
+function formatTileSpaces(r) {
+  return r.areas.map((a, i) =>
+    `시공면 ${String(i + 1).padStart(2, '0')} : ${TILE_TYPES[a.type].label} ${a.color} ${a.width} × ${a.height}cm`
+    + ` (${fix(a.m2)}㎡ · ${fix(a.pyeong)}평) → ${a.count}장`).join('\n');
+}
+
+function formatTileQuote(r) {
+  return [
+    ...r.lines.map((l) => `${l.label} : ${l.count}개 × ${tileWon(l.unit)} = ${tileWon(l.amount)}`),
+    `합계 : ${tileWon(r.total)}`,
+  ].join('\n');
+}
+
+/** 검수 링크: 시공면을 `~` 로 잇고, 하나는 `종류.색상.가로x세로` (종류 a 접착식 / n 비접착식) */
+const encodeTiles = (items) => items.map((it) => [it.type, it.color, `${it.width}x${it.height}`].join('.')).join('~');
+function decodeTiles(text) {
+  return String(text).split('~').map((part) => {
+    const [type, color, ...rest] = part.split('.');
+    const size = rest.join('.'); // 치수에 소수점이 들어갈 수 있다
+    const m = /^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/.exec(size ?? '');
+    if (!m || !TILE_TYPES[type] || !color) return null;
+    return { type, color, width: Number(m[1]), height: Number(m[2]) };
+  }).filter(Boolean);
+}
+</script>
+
+<script>
+(function () {
+  const $ = (sel) => document.querySelector(sel);
+  const blank = () => ({ type: 'a', color: tileColors('a')[0], width: NaN, height: NaN });
+  const isBlank = (v) => v === undefined || v === null || v === '' || Number.isNaN(v);
+  const visibleErrors = (it) => validateTile(it).filter((e) =>
+    !(e.code === 'INVALID_WIDTH' && isBlank(it.width)) && !(e.code === 'INVALID_HEIGHT' && isBlank(it.height)));
+
+  let items = [blank()];
+  let lastText = { sum: '', quote: '' };
+  let lastResult = null;
+
+  function renderItems() {
+    const box = $('#items');
+    box.innerHTML = '';
+    items.forEach((item, idx) => {
+      const errors = visibleErrors(item);
+      const card = document.createElement('div');
+      card.className = 'item' + (errors.length ? ' invalid' : '');
+
+      const head = document.createElement('div');
+      head.className = 'item-head';
+      head.innerHTML = '<span class="item-no">시공면 ' + String(idx + 1).padStart(2, '0') + '</span>';
+      if (items.length > 1) {
+        const del = document.createElement('button');
+        del.className = 'link';
+        del.textContent = '삭제';
+        del.onclick = () => { items.splice(idx, 1); render(); };
+        head.appendChild(del);
+      }
+      card.appendChild(head);
+
+      const grid = document.createElement('div');
+      grid.className = 'item-grid';
+
+      const fType = document.createElement('div');
+      fType.className = 'field';
+      fType.innerHTML = '<label>종류</label>';
+      const seg = document.createElement('div');
+      seg.className = 'seg';
+      Object.values(TILE_TYPES).forEach((t) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = t.label;
+        b.setAttribute('aria-pressed', String(item.type === t.key));
+        b.onclick = () => {
+          item.type = t.key;
+          if (!tileColors(t.key).includes(item.color)) item.color = tileColors(t.key)[0];
+          render();
+        };
+        seg.appendChild(b);
+      });
+      fType.appendChild(seg);
+      grid.appendChild(fType);
+
+      const fColor = document.createElement('div');
+      fColor.className = 'field';
+      fColor.innerHTML = '<label>색상 <span style="opacity:.7">(' + TILE_TYPES[item.type].label + ' ' + tileColors(item.type).length + '색)</span></label>';
+      const sel = document.createElement('select');
+      tileColors(item.type).forEach((name) => {
+        const o = document.createElement('option');
+        o.value = name;
+        const extra = tileUnitPrice(item.type, name) - TILE_BASE_PRICE;
+        o.textContent = name + (extra ? ' (+' + extra.toLocaleString('ko-KR') + '원)' : '');
+        if (name === item.color) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.onchange = (e) => { item.color = e.target.value; render(); };
+      fColor.appendChild(sel);
+      grid.appendChild(fColor);
+
+      [['width', '가로 (cm)'], ['height', '세로 (cm)']].forEach(([key, label]) => {
+        const f = document.createElement('div');
+        f.className = 'field';
+        f.innerHTML = '<label>' + label + '</label>';
+        const inp = document.createElement('input');
+        inp.type = 'number';
+        inp.value = isBlank(item[key]) ? '' : item[key];
+        inp.placeholder = key === 'width' ? '예: 300' : '예: 400';
+        inp.min = '0';
+        inp.step = 'any';
+        inp.dataset.key = idx + ':' + key;
+        inp.oninput = (e) => { item[key] = e.target.value === '' ? NaN : Number(e.target.value); render({ keepFocus: e.target }); };
+        f.appendChild(inp);
+        grid.appendChild(f);
+      });
+
+      card.appendChild(grid);
+      if (errors.length) {
+        const e = document.createElement('div');
+        e.className = 'err';
+        e.textContent = errors.map((x) => x.message).join(' / ');
+        card.appendChild(e);
+      }
+      box.appendChild(card);
+    });
+  }
+
+  function renderOutput() {
+    const valid = items.filter((i) => validateTile(i).length === 0);
+    const sumEl = $('#out-sum'), spaceEl = $('#out-space');
+    if (valid.length === 0) {
+      const msg = items.every((it) => isBlank(it.width) && isBlank(it.height))
+        ? '가로·세로를 입력하면 결과가 나옵니다.' : '입력값을 확인해 주세요.';
+      [sumEl, spaceEl].forEach((el) => { el.textContent = msg; el.classList.add('empty'); });
+      $('#detail').innerHTML = '';
+      $('#quote').innerHTML = '';
+      lastText = { sum: '', quote: '' };
+      lastResult = null;
+      updateActionButtons();
+      return;
+    }
+
+    const r = calculateTiles(valid);
+    lastResult = r;
+    sumEl.textContent = formatTileOrder(r);
+    spaceEl.textContent = formatTileSpaces(r);
+    [sumEl, spaceEl].forEach((el) => el.classList.remove('empty'));
+
+    // 검수 링크: 복사할 때만 붙인다. 사장님이 누르면 같은 입력으로 계산기가 열린다.
+    const link = '\n\n검수: ' + TILE_CALC_URL + '#' + encodeURIComponent(encodeTiles(valid));
+    lastText = {
+      sum: '[주문 요약]\n' + formatTileOrder(r) + '\n\n[시공 정보]\n' + formatTileSpaces(r) + link,
+      quote: formatTileQuote(r) + link,
+    };
+
+    const head = ['시공면', '옵션', '가로 × 세로', '면적', '순수 장수', '필요 장수'];
+    $('#detail').innerHTML =
+      '<thead><tr>' + head.map((h) => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>' +
+      r.areas.map((a, i) => '<tr><td>' + String(i + 1).padStart(2, '0') + '</td><td>' + TILE_TYPES[a.type].label + ' / ' + a.color +
+        '</td><td>' + a.width + ' × ' + a.height + '</td><td>' + a.m2.toFixed(2) + '㎡ · ' + a.pyeong.toFixed(2) + '평</td><td>' +
+        a.exact.toFixed(2) + '</td><td class="strong">' + a.count + '장</td></tr>').join('') + '</tbody>';
+
+    $('#quote').innerHTML =
+      '<thead><tr><th>항목</th><th>수량</th><th>단가</th><th>금액</th></tr></thead><tbody>' +
+      r.lines.map((l) => '<tr><td>' + l.label + '</td><td>' + l.count + '개</td><td>' + tileWon(l.unit) +
+        '</td><td class="strong">' + tileWon(l.amount) + '</td></tr>').join('') +
+      '<tr class="total"><td>합계</td><td></td><td></td><td>' + tileWon(r.total) + '</td></tr></tbody>';
+    updateActionButtons();
+  }
+
+  function updateActionButtons() {
+    document.querySelectorAll('[data-copy]').forEach((btn) => {
+      const empty = !lastText[btn.dataset.copy];
+      btn.disabled = empty;
+      btn.title = empty ? '가로·세로를 입력하면 활성화됩니다' : '';
+    });
+    const talk = $('#send-talk');
+    const ready = Boolean(lastText.sum);
+    talk.href = TALK_URL || '#';
+    talk.classList.toggle('is-disabled', !ready);
+    talk.setAttribute('aria-disabled', String(!ready));
+  }
+
+  function render(opts) {
+    const focus = opts && opts.keepFocus ? opts.keepFocus.dataset.key : null;
+    const pos = opts && opts.keepFocus ? opts.keepFocus.selectionStart : null;
+    renderItems();
+    renderOutput();
+    if (focus) {
+      const next = document.querySelector('[data-key="' + focus + '"]');
+      if (next) { next.focus(); try { next.setSelectionRange(pos, pos); } catch (e) {} }
+    }
+  }
+
+  $('#add').onclick = () => { items.push(blank()); render(); };
+  $('#reset').onclick = () => { items = [blank()]; render(); };
+
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+    } catch (e) { /* 다음 방법으로 */ }
+    return execCopy(text);
+  }
+  function execCopy(text) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) { return false; }
+  }
+  function showManualCopy(text, title) {
+    $('#manual-copy-title').textContent = title || '복사가 차단됐습니다';
+    $('#manual-copy-text').value = text;
+    $('#manual-copy').style.display = 'flex';
+    $('#manual-copy-text').focus();
+    $('#manual-copy-text').select();
+  }
+  $('#manual-copy-close').onclick = () => { $('#manual-copy').style.display = 'none'; };
+
+  // 톡톡은 메시지를 미리 채울 수 없다: 복사 → 붙여넣기 안내 창 → 톡톡 열기
+  $('#send-talk').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const text = lastText.sum;
+    if (!text) return;
+    const copied = execCopy(text) || await copyText(text);
+    if (copied) $('#talk-guide').showModal();
+    else showManualCopy(text);
+  });
+  $('#talk-guide-open').href = TALK_URL || '#';
+  $('#talk-guide-open').addEventListener('click', () => $('#talk-guide').close());
+  $('#talk-guide-close').onclick = () => $('#talk-guide').close();
+
+  let quoteTemplate = null;
+  $('#quote-xlsx').onclick = async () => {
+    const note = $('#quote-xlsx-note');
+    note.textContent = '';
+    if (!lastResult) { note.textContent = '가로·세로를 입력하면 견적서를 만들 수 있습니다.'; return; }
+    try {
+      quoteTemplate = quoteTemplate || await (await fetch('../quote-template.json')).json();
+      const to = $('#quote-to').value.trim();
+      const bytes = quoteXlsx(quoteTemplate, lastResult.lines, to);
+      const d = new Date();
+      const ymd = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      a.download = '견적서_' + (to || '데코타일') + '_' + ymd + '.xlsx';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch (e) {
+      note.textContent = '견적서를 만들지 못했습니다: ' + e.message;
+    }
+  };
+
+  document.querySelectorAll('[data-copy]').forEach((btn) => {
+    btn.onclick = async () => {
+      const label = btn.dataset.label || btn.textContent;
+      btn.dataset.label = label;
+      const text = lastText[btn.dataset.copy];
+      if (!text) return;
+      if (await copyText(text)) {
+        btn.textContent = '복사됨';
+        setTimeout(() => { btn.textContent = label; }, 1200);
+      } else showManualCopy(text);
+    };
+  });
+
+  function loadFromHash() {
+    let fromLink = [];
+    try { fromLink = decodeTiles(decodeURIComponent(location.hash.slice(1))); } catch (e) { /* 깨진 링크 */ }
+    if (fromLink.length) items = fromLink;
+  }
+  window.addEventListener('hashchange', () => { loadFromHash(); render(); });
+  loadFromHash();
+  render();
+})();
+</script>
+
+</body>
+</html>
