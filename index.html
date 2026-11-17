@@ -1010,9 +1010,11 @@ function calculateItem(input, boards = null) {
     : planWithBoards(width, shapeSpec.effectiveWidth, boards);
   const pieces = plan.boards + plan.strips;
 
+  // 완성 세로가 원장 길이 그대로(2440, 끝단정리 X)면 자르지 않고 원장째 나간다. 재단손실 5mm 도 없다.
+  const uncut = !trimEnds && finished === shapeSpec.sheetLength;
   // 세로가 유효길이를 넘으면 여러 조각으로 나눠 이어 붙인다.
-  const segments = lengthPlan(finished, usableLength).map((segFinished) => {
-    const length = segFinished + CUT_LOSS;
+  const segments = (uncut ? [finished] : lengthPlan(finished, usableLength)).map((segFinished) => {
+    const length = uncut ? segFinished : segFinished + CUT_LOSS;
     const perSheet = piecesPerSheet(length, usableLength);
     // 원장과 낱개는 자재가 다르므로 소요 수량도 따로 센다.
     const stocks = [
@@ -1028,6 +1030,7 @@ function calculateItem(input, boards = null) {
       piecesPerSheet: perSheet,
       pieces,
       stocks,
+      uncut,
     };
   });
 
@@ -1052,7 +1055,7 @@ function calculateItem(input, boards = null) {
     piecesPerSheet: segments[0].piecesPerSheet,
     sheets: barsOf(STOCK_BOARD),
     strips: barsOf(STOCK_STRIP),
-    cutCount: segments.reduce((n, seg) => n + seg.pieces, 0),
+    cutCount: segments.reduce((n, seg) => n + (seg.uncut ? 0 : seg.pieces), 0),
     /** 몰딩 한 면 분량. 면 수는 moldingSides */
     molding: sides > 0 ? moldingPlan(width) : null,
     moldingSides: sides,
@@ -1155,7 +1158,7 @@ function chooseBoards(items) {
     const cost = (tot) => lengths.reduce((won, seg, L) => {
       const B = tot[2 * L], S = tot[2 * L + 1];
       return won + Math.ceil(B / seg.piecesPerSheet) * bp + Math.ceil(S / seg.piecesPerSheet) * sp
-        + (B + S) * cp;
+        + (seg.uncut ? 0 : (B + S) * cp);
     }, 0);
 
     // 상태: 길이별 [원장 합, 낱개 합] → { changed, overhang, picks }
@@ -1503,7 +1506,8 @@ function formatAdminOrder(result) {
 function formatCuttingSheet(result) {
   const lines = result.cuts.map((c) => {
     const stock = c.kind === STOCK_STRIP ? ` ${STRIP_WIDTH}폭` : '';
-    return `${c.shape}-${c.color}${stock} : ${c.finishedLength} - ${c.pieces}조각`;
+    const note = c.cutLength === c.finishedLength ? ' (재단 없음)' : '';
+    return `${c.shape}-${c.color}${stock} : ${c.finishedLength} - ${c.pieces}조각${note}`;
   });
 
   // 마감몰딩은 자르지 않지만, 어느 색 몰딩이 어디(상단/하단)에 몇 개 같이 나가는지 적는다.

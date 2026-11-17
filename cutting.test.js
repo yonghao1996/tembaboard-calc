@@ -731,3 +731,18 @@ test('자투리 목록의 조각 수는 자투리 텍스트와 일치한다', ()
 
   assert.equal(fromList, fromText);
 });
+
+test('세로 2440(원장 길이 그대로)은 자르지 않는다: 재단손실 5mm·재단 횟수 없음', () => {
+  const result = calculate([{ shape: 'square', color: '화이트', width: 1200, height: 2440, useMolding: false, trimEnds: false }]);
+  const [item] = result.items;
+  assert.equal(item.segments.length, 1, '2435 + 5 로 나누지 않는다');
+  assert.equal(item.cutLength, 2440);
+  assert.equal(item.sheets, 4);
+  assert.equal(result.cutCount, 0);
+  assert.equal(formatCuttingSheet(result), '사각-화이트 : 2440 - 4조각 (재단 없음)');
+  assert.ok(!formatOrderSummary(result).includes('재단 필요해요'));
+
+  // 끝단정리를 하면 원장 끝을 자르므로 예전처럼 나눈다
+  const trimmed = calculate([{ shape: 'square', color: '화이트', width: 300, height: 2440, trimEnds: true }]);
+  assert.ok(trimmed.items[0].segments.length > 1);
+});
