@@ -45,8 +45,9 @@ export const won = (n) => `${n.toLocaleString('ko-KR')}원`;
  */
 export function quote(result) {
   const lines = [];
-  const push = (label, count, unit) => {
-    if (count > 0) lines.push({ label, count, unit, amount: unit === null ? null : unit * count });
+  // item / note : 견적서 엑셀의 품명 / 비고 칸
+  const push = (label, count, unit, item, note) => {
+    if (count > 0) lines.push({ label, count, unit, amount: unit === null ? null : unit * count, item, note });
   };
 
   for (const b of result.boards) {
@@ -54,16 +55,18 @@ export function quote(result) {
       `${STORE_OPTIONS.shape} / ${b.shape}, ${STORE_OPTIONS.color} / ${storeColorLabel(b.color, b.shapeKey)}`,
       b.sheets,
       boardPrice(b.shapeKey, b.color),
+      `템바보드 ${b.shape}`,
+      storeColorLabel(b.color, b.shapeKey),
     );
   }
-  push(STORE_OPTIONS.cutting, result.cutCount, cuttingPrice());
+  push(STORE_OPTIONS.cutting, result.cutCount, cuttingPrice(), '재단', '1회당');
   for (const length of MOLDING_LENGTHS) {
     const count = result.moldings.filter((m) => m.length === length).reduce((n, m) => n + m.count, 0);
-    push(STORE_OPTIONS.moldingByLength[length], count, moldingPrice(length));
+    push(STORE_OPTIONS.moldingByLength[length], count, moldingPrice(length), '마감몰딩', `15x${length}x12T`);
   }
   for (const shapeKey of Object.keys(SHAPES)) {
     const count = result.stripOrders.filter((s) => s.shapeKey === shapeKey).reduce((n, s) => n + s.bars, 0);
-    push(STORE_OPTIONS.stripByShape[shapeKey], count, stripPrice(shapeKey));
+    push(STORE_OPTIONS.stripByShape[shapeKey], count, stripPrice(shapeKey), `템바보드 ${SHAPES[shapeKey].label} 100폭`, '100x2440x12T');
   }
 
   return {

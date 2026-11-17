@@ -176,7 +176,7 @@ label {
   letter-spacing: 0.06em;
   color: var(--muted);
 }
-input[type="number"], select {
+input[type="number"], input[type="text"], select {
   font-family: var(--mono);
   font-size: 14px;
   font-variant-numeric: tabular-nums;
@@ -188,7 +188,7 @@ input[type="number"], select {
   width: 100%;
 }
 select { font-family: var(--sans); }
-input[type="number"]:focus-visible, select:focus-visible, button:focus-visible {
+input[type="number"]:focus-visible, input[type="text"]:focus-visible, select:focus-visible, button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -495,6 +495,12 @@ footer {
           <div class="tbl-scroll"><table id="quote"></table></div>
           <div class="note" id="quote-note"></div>
           <div class="row-actions"><button class="btn" data-copy="quote">견적 복사</button></div>
+          <div class="field" style="margin-top:12px">
+            <label for="quote-to">받는 분 (견적서 '○○ 님 귀하')</label>
+            <input type="text" id="quote-to" placeholder="예: 당진꿈나래학교" autocomplete="off">
+          </div>
+          <div class="row-actions" style="margin-top:8px"><button class="btn solid" id="quote-xlsx">엑셀 견적서 받기</button></div>
+          <div class="note" id="quote-xlsx-note"></div>
         </div>
       </section>
     </div>
@@ -571,6 +577,7 @@ footer {
 
   let items = [blank()];
   let lastText = { sum: '', cut: '', left: '', full: '', quote: '', admin: '' };
+  let lastQuote = null;
 
   function renderItems() {
     const box = $('#items');
@@ -732,6 +739,7 @@ footer {
       $('#detail-note').className = 'note';
       $('#quote').innerHTML = '';
       $('#quote-note').textContent = '';
+      lastQuote = null;
       $('#walls').innerHTML = '';
       $('#cuts').innerHTML = '';
       $('#wall-count').textContent = '';
@@ -1177,6 +1185,7 @@ footer {
 
   function renderQuote(result) {
     const q = quote(result);
+    lastQuote = q;
     const head = ['항목', '수량', '단가', '금액'];
     const rows = q.lines.map((l) => (
       '<tr>' +
@@ -1285,6 +1294,28 @@ footer {
   $('#talk-guide-open').href = TALK_URL || '#';
   $('#talk-guide-open').addEventListener('click', () => $('#talk-guide').close());
   $('#talk-guide-close').onclick = () => $('#talk-guide').close();
+
+  // 견적서 엑셀: 양식(quote-template.json)은 누를 때 받아 온다
+  let quoteTemplate = null;
+  $('#quote-xlsx').onclick = async () => {
+    const note = $('#quote-xlsx-note');
+    note.textContent = '';
+    if (!lastQuote) { note.textContent = '가로·세로를 입력하면 견적서를 만들 수 있습니다.'; return; }
+    try {
+      quoteTemplate = quoteTemplate || await (await fetch('quote-template.json')).json();
+      const to = $('#quote-to').value.trim();
+      const bytes = quoteXlsx(quoteTemplate, lastQuote.lines, to);
+      const d = new Date();
+      const ymd = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      a.download = '견적서_' + (to || '템바보드') + '_' + ymd + '.xlsx';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch (e) {
+      note.textContent = '견적서를 만들지 못했습니다: ' + e.message;
+    }
+  };
 
   document.querySelectorAll('[data-copy]').forEach((btn) => {
     btn.onclick = async () => {

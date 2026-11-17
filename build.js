@@ -3,7 +3,7 @@
  * colors.js / store-options.js / cutting.js / pricing.js 원본을 그대로 인라인한다.
  * (계산 로직을 페이지용으로 따로 복사해 두지 않기 위함)
  */
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,7 +17,7 @@ const toClassic = (src) =>
     .replace(/^export\s+/gm, '')             // export 키워드 제거
     .trim();
 
-const bundle = [read('colors.js'), read('store-options.js'), read('cutting.js'), read('pricing.js')]
+const bundle = [read('colors.js'), read('store-options.js'), read('cutting.js'), read('pricing.js'), read('quote-xlsx.js')]
   .map(toClassic)
   .join('\n\n');
 
@@ -54,5 +54,18 @@ const page = standalone(html, '템바보드 치수를 넣으면 주문 옵션, �
 writeFileSync(join(root, 'index.html'), page);
 mkdirSync(join(root, 'dist'), { recursive: true });
 writeFileSync(join(root, 'dist/index.html'), html);
+
+// 견적서 엑셀 양식. 페이지가 엑셀 버튼을 누를 때 받아 간다 (페이지를 가볍게 두려고 따로 둔다)
+const tplDir = join(root, 'web/quote-template');
+const tpl = JSON.stringify(Object.fromEntries(
+  readdirSync(tplDir, { recursive: true, withFileTypes: true })
+    .filter((d) => d.isFile() && d.name !== '.DS_Store')
+    .map((d) => {
+      const full = join(d.parentPath, d.name);
+      return [full.slice(tplDir.length + 1), readFileSync(full).toString('base64')];
+    }),
+));
+writeFileSync(join(root, 'quote-template.json'), tpl);
+writeFileSync(join(root, 'dist/quote-template.json'), tpl);
 const kb = (s) => (s.length / 1024).toFixed(1);
 console.log(`index.html ${kb(page)} KB · dist/index.html ${kb(html)} KB (조각)`);
